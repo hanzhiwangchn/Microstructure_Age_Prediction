@@ -26,12 +26,8 @@ def build_model(args):
                 torch.nn.init.kaiming_normal_(m.weight.data)
     if args.params_init != 'default':
         model.apply(weights_init)
-
-    # model_config for output files
-    model_config = f'{args.model}_loss_{args.loss_type}_skewed_{args.skewed_loss}_' \
-                   f'correlation_{args.correlation_type}_dataset_{args.dataset}_' \
-                   f'{args.comment}_rnd_state_{args.random_state}'
-    return model, model_config
+        
+    return model
 
 
 # ------------------- Scratch DenseNet from MONAI ---------------------

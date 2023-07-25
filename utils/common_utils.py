@@ -3,9 +3,11 @@ import time, os, json ,logging, torch
 
 from scipy import stats
 import pandas as pd
+import torchio as tio
 
 logger = logging.getLogger(__name__)
 results_folder = 'model_ckpt_results'
+WAND_NPY_DATA_DIR = '/cubric/data/c1809127/314_wand_compact'
 
 
 # ------------------- Pytorch Dataset ---------------------
@@ -86,7 +88,7 @@ class ToTensor_MRI(object):
         return torch.from_numpy(image), torch.from_numpy(label)
 
 
-# ------------------- Run Manager for no Trainer training ---------------------
+# ------------------- Run Manager ---------------------
 class RunManager:
     """capture model stats"""
     def __init__(self, args):
@@ -121,11 +123,8 @@ class RunManager:
         self.test_loader = test_loader
         logger.info('Begin Run!')
 
-    def end_run(self, dirs):
+    def end_run(self):
         """save metrics from test set"""
-        test_results = {f"eval_{k}": v for k, v in self.run_metrics_test.items()}
-        with open(os.path.join(dirs, "test_results.json"), "w") as f:
-            json.dump(test_results, f)
         self.epoch_num_count = 0
         logger.info('End Run!')
 
@@ -193,11 +192,10 @@ def update_args(args):
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logger.info(f'Found device: {args.device}')
 
-    # original setting for camcan dataset
-    if args.dataset == 'camcan':
-        args.data_dir = '../shared/camcan/mri_concat.pickle'
+    if args.dataset == 'wand_compact':
+        args.data_dir = os.path.join(WAND_NPY_DATA_DIR, args.image_modality)
         args.num_train_epochs = 400
-        args.batch_size = 32
+        args.batch_size = 8
         args.update_lambda_start_epoch = 150
         args.update_lambda_second_phase_start_epoch = 250
         args.save_best_start_epoch = 100
@@ -205,21 +203,24 @@ def update_args(args):
     # quick pipeline check setting
     if args.run_code_test:
         # training
+        args.data_dir = os.path.join(WAND_NPY_DATA_DIR, args.image_modality)
         args.model = 'resnet'
-        args.num_train_epochs = 10
+        args.num_train_epochs = 50
         args.batch_size = 32
-        args.update_lambda_start_epoch = 2
-        args.update_lambda_second_phase_start_epoch = 4
+        args.update_lambda_start_epoch = 10
+        args.update_lambda_second_phase_start_epoch = 20
         args.save_best_start_epoch = 1
         args.comment = 'test_run'
         # dataset
         args.val_test_size = 0.8
         args.test_size = 0.5
 
-    args.out_dir = results_folder
-    args.model_name_no_trainer = args.model+ f'-pt-{args.comment}' 
-    args.out_dir_no_trainer = f'{args.out_dir}/{args.model_name_no_trainer}'
-    os.makedirs(args.out_dir_no_trainer, exist_ok=True)
+    args.out_dir_main = results_folder
+    args.model_name = f'{args.model}_loss_{args.loss_type}_skewed_{args.skewed_loss}_' \
+                      f'correlation_{args.correlation_type}_dataset_{args.image_modality}_' \
+                      f'{args.comment}_rnd_state_{args.random_state}'
+    args.out_dir = f'{args.out_dir_main}/{args.model_name}'
+    os.makedirs(args.out_dir, exist_ok=True)
     return args
 
 
@@ -311,3 +312,12 @@ def calculate_correlation_coefficient(preds, labels, args):
         error = preds - labels
         corr_coef = stats.spearmanr(error.cpu(), labels.cpu())[0]
     return corr_coef
+
+
+def medical_augmentation_pt(images):
+    training_transform = tio.Compose([
+        tio.RandomBlur(p=0.5),  # blur 50% of times
+        tio.RandomNoise(p=0.5),  # Gaussian noise 50% of times
+        tio.RandomFlip(flip_probability=0.5),
+    ])
+    return training_transform(images)

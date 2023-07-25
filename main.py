@@ -2,13 +2,9 @@ import argparse, logging, os
 
 from utils.common_utils import RunManager, update_args
 from utils.build_dataset import build_dataset
-from utils.build_processor import build_processor
 from utils.build_model import build_model
 from utils.build_loss_function import build_loss_function
 from utils.build_training_loop import build_loader, build_optimizer, train_val_test_pt
-
-import config
-config.init()
 
 # create logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -52,7 +48,11 @@ def build_parser():
     parser.add_argument('--two-stage-correction', action='store_true', default=False,
                         help='use the two-stage correction approach for the normal loss')
     # frequently used settings
-    parser.add_argument('--dataset', type=str, default='camcan', choices=['camcan', 'wand'],
+    parser.add_argument('--dataset', type=str, default='wand_compact', choices=['wand_compact', 'wand_full'],
+                        help='specify which dataset to use')
+    parser.add_argument('--image-modality', type=str, default='KFA_DKI', 
+                        choices=['KFA_DKI', 'ICVF_NODDI', 'FA_CHARMED', 'RD_CHARMED', 'MD_CHARMED', 
+                                 'AD_CHARMED', 'FRtot_CHARMED', 'MWF_mcDESPOT'],
                         help='specify which dataset to use')
     parser.add_argument('--random-state', type=int, default=1000,
                         help='used in train test dataset split')
@@ -86,7 +86,7 @@ def build_parser():
 
 
 def main():
-    """overall workflow of MRI Age Prediction"""
+    """overall workflow of Microstructure Age Prediction"""
     # build parser
     args = build_parser().parse_args()
     
@@ -97,15 +97,9 @@ def main():
     # build dataset
     dataset_train, dataset_val, dataset_test, args = build_dataset(args=args)
     logger.info('Dataset loaded')
-    
-    # build processor
-    if args.pipeline == 'hf':
-        dataset_train, dataset_val, dataset_test = build_processor(dataset_train=dataset_train, 
-            dataset_val=dataset_val, dataset_test=dataset_test)
-        logger.info('HF Dataset preprocessed')
 
     # build model
-    model, model_config = build_model(args=args)
+    model = build_model(args=args)
     logger.info('Model loaded')
 
     # build loss function

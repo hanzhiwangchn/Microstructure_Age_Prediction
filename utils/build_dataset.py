@@ -1,4 +1,4 @@
-import logging
+import logging, os
 
 from sklearn.model_selection import StratifiedShuffleSplit
 import numpy as np
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def build_dataset(args):
     """main function for dataset building"""
-    if args.dataset == 'wand':
+    if args.dataset == 'wand_compact':
         dataset_train, dataset_val, dataset_test, lim, input_shape, median_age = build_dataset_wand(args)
     # update arguments
     args.age_limits = lim
@@ -28,8 +28,8 @@ def build_dataset_wand(args):
     load WAND data
     """
     # load data(in .npy format)
-    images = np.load(args.data_dir + f'subject_images_{args.image_modality}.npy')
-    age = np.load(args.data_dir + f'subject_age_{args.image_modality}.npy')
+    images = np.load(os.path.join(args.data_dir, f'subject_images_{args.image_modality}.npy'))
+    age = np.load(os.path.join(args.data_dir, f'subject_age_{args.image_modality}.npy'))
 
     df = pd.DataFrame()
     df['Age'] = age
@@ -45,7 +45,7 @@ def build_dataset_wand(args):
     assert len(images) == len(df)
 
     # assign a categorical label to Age for Stratified Split
-    df['Age_categorical'] = pd.qcut(df['Age'], 25, labels=[i for i in range(25)])
+    df['Age_categorical'] = pd.qcut(df['Age'], 10, labels=[i for i in range(10)])
 
     # Stratified train validation-test Split
     split = StratifiedShuffleSplit(test_size=args.val_test_size, random_state=args.random_state)

@@ -2,10 +2,12 @@ import torch, math, logging, os, time
 from transformers import get_scheduler
 import evaluate
 import numpy as np
+import pandas as pd
 from sklearn.linear_model import LinearRegression
 
 from utils.common_utils import calculate_correlation
 from utils.build_loss_function import build_loss_function
+from utils.build_model import build_densenet121_monai, ResNet
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +84,6 @@ def train_val_test_pt(args, train_loader, val_loader, test_loader, model, optimi
                 # initialize new skewed loss function based on new lamda_max
                 loss_fn_train, _, _ = build_loss_function(args)
 
-
             # save the model with the best validation loss
             if args.save_best and epoch >= args.save_best_start_epoch:
                 if args.skewed_loss:
@@ -91,23 +92,23 @@ def train_val_test_pt(args, train_loader, val_loader, test_loader, model, optimi
                             (abs(m.epoch_stats['val_correlation']) <= args.acceptable_correlation_threshold):
                         logger.info(f'Acceptable and lower validation loss found at epoch {m.epoch_num_count}')
                         best_loss = m.epoch_stats['val_mae']
-                        torch.save(model.state_dict(), os.path.join(args.out_dir_no_trainer, "Best_Model.pt"))
+                        torch.save(model.state_dict(), os.path.join(args.out_dir, "Best_Model.pt"))
 
                 else:
                     if m.epoch_stats['val_mae'] < best_loss:
                         logger.info(f'Lower validation loss found at epoch {m.epoch_num_count}')
                         best_loss = m.epoch_stats['val_mae']
-                        torch.save(model.state_dict(), os.path.join(args.out_dir_no_trainer, "Best_Model.pt"))
+                        torch.save(model.state_dict(), os.path.join(args.out_dir, "Best_Model.pt"))
             
             m.end_epoch()
             m.display_epoch_results()
     
     # testing
-    # test(args, model, m, test_loader)
+    evaluate_test_set_performance(args, test_loader, m)
 
-    # m.end_run(dirs=args.out_dir_no_trainer)
+    m.end_run()
     # save stats
-    m.save(os.path.join(args.out_dir_no_trainer, f'{args.model_name_no_trainer}_runtime_stats'))
+    m.save(os.path.join(args.out_dir, f'{args.model_name}_runtime_stats'))
 
 
 def train(args, model, m, train_loader, optimizer, lr_scheduler, loss_fn_train):
@@ -178,10 +179,61 @@ def val(args, model, m, val_loader):
     m.collect_val_metrics(metric_results=all_metrics_results)
 
 
+def evaluate_test_set_performance(args, test_loader, m):
+    """evaluate performance here, we need to load the best model instead of the model at epoch 300"""
+    all_metrics, all_metrics_results = dict(), dict()
+    all_metric_type = ['mae']
+    for metric in all_metric_type:
+        all_metrics[metric] = evaluate.load(metric)
+
+    if args.model == 'densenet':
+        model = build_densenet121_monai().to(args.device)
+    elif args.model == 'resnet':
+        model = ResNet(input_size=args.input_shape).to(args.device)
+
+    model.load_state_dict(state_dict=torch.load(os.path.join(args.out_dir, "Best_Model.pt")))
+    model.eval()
+
+    # save results to csv file
+    preds_list = []
+    labels_list = []
+    with torch.no_grad():
+        for batch in test_loader:
+            batch = {k: v.to(args.device) for k, v in batch.items()}
+            outputs = model(batch['image'])
+
+            assert outputs.shape == batch['label'].shape
+            assert len(outputs.shape) == 2
+
+            for metric in all_metric_type:
+                all_metrics[metric].add_batch(predictions=outputs, references=batch["label"])
+
+            preds_list.append(outputs)
+            labels_list.append(batch['label'])
+        
+        # preds and labels will have shape (*, 1)
+        preds_tensor = torch.cat(preds_list, 0)
+        labels_tensor = torch.cat(labels_list, 0)
+
+    for metric in all_metric_type:
+        if metric in ["recall", "precision", "f1"]:
+            all_metrics_results.update(all_metrics[metric].compute(average='weighted'))
+        else:
+            all_metrics_results.update(all_metrics[metric].compute())
+    
+    # track test metrics
+    m.collect_test_metrics(metric_results=all_metrics_results)
+
+    df_save = pd.DataFrame()
+    df_save['predicted_value'] = preds_tensor.squeeze().cpu().numpy()
+    df_save['ground_truth'] = labels_tensor.squeeze().cpu().numpy()
+    df_save.to_csv(os.path.join(args.out_dir, "performance_summary.csv"))
+
+
 def test(args, model, m, test_loader):
     """test part"""
     all_metrics, all_metrics_results = dict(), dict()
-    all_metric_type = ["accuracy", "recall", "precision", "f1"]
+    all_metric_type = ['mae']
     for metric in all_metric_type:
         all_metrics[metric] = evaluate.load(metric)
 
