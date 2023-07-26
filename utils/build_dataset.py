@@ -15,6 +15,8 @@ def build_dataset(args):
     """main function for dataset building"""
     if args.dataset == 'wand_compact':
         dataset_train, dataset_val, dataset_test, lim, input_shape, median_age = build_dataset_wand(args)
+    elif args.dataset == 'wand_full':
+        dataset_train, dataset_val, dataset_test, lim, input_shape, median_age = build_dataset_wand(args)
     # update arguments
     args.age_limits = lim
     args.input_shape = input_shape
@@ -91,10 +93,12 @@ def build_dataset_wand(args):
     dataset_train = TrainDataset(images=train_images, labels=train_labels, 
         transform=transforms.Compose([ToTensor_MRI()]), medical_augment=medical_augmentation_pt)
     del train_images, train_labels
+
     # Pytorch Data-set for validation set
     dataset_val = ValidationDataset(images=validation_images, labels=validation_labels,
                                            transform=transforms.Compose([ToTensor_MRI()]))
     del validation_images, validation_labels
+
     # Pytorch Data-set for test set
     dataset_test = TestDataset(images=test_images, labels=test_labels,
                                transform=transforms.Compose([ToTensor_MRI()]))

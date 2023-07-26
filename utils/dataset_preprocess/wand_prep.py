@@ -7,10 +7,6 @@ import nibabel as nib
 # have different ids. 
 # WAND_NPY_IMAGE_DIR stores a compact version of above dataset, where all modalities have the 
 # same ids. It is obvious smaller than the above dataset.
-# 
-# Considering the size of image, we decide to drop "MWF_mcDESPOT" modality as it has different image shape 
-# compared with other modalities.
-# "KFA_DKI" and "ICVF_NODDI" are NOT going to be dropped as marginal utility is low. (Drop them will not gain much more images)
 WAND_IMAGE_DIR = '/cubric/collab/314_wand/bids/'
 WAND_FULL_IMAGE_DIR = '/cubric/data/c1809127/314_wand_full/'
 WAND_COMPACT_IMAGE_DIR = '/cubric/data/c1809127/314_wand_compact/'

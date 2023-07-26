@@ -1,4 +1,4 @@
-import torch, math, logging, os, time
+import torch, math, logging, os
 from transformers import get_scheduler
 import evaluate
 import numpy as np
@@ -33,13 +33,6 @@ def build_loader(args, dataset_train, dataset_val, dataset_test):
     return train_loader, val_loader, test_loader
 
 
-# def collate_fn(examples):
-#     """generate batches for data loader"""
-#     images = torch.stack([example["image"] for example in examples])
-#     labels = torch.tensor([example["label"] for example in examples]).reshape(-1, 1)
-#     return {"pixel_values": images, "labels": labels}
-
-
 # ------------------- build optimizer ---------------------
 def build_optimizer(model, train_loader, args):
     """build optimizer and learning-rate scheduler"""
@@ -57,11 +50,10 @@ def build_optimizer(model, train_loader, args):
 
 
 # ------------------- build main training loop ---------------------
-def train_val_test_pt(args, train_loader, val_loader, test_loader, model, optimizer, 
+def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer, 
         lr_scheduler, m, loss_fn_train):
     """train/val/test for pytorch loop"""
-    model.to(args.device)
-    # variables for compact dynamic lambda
+    # variable for compact dynamic lambda
     lambda_correlation_list = []
 
     if not args.test:

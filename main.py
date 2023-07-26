@@ -4,7 +4,7 @@ from utils.common_utils import RunManager, update_args
 from utils.build_dataset import build_dataset
 from utils.build_model import build_model
 from utils.build_loss_function import build_loss_function
-from utils.build_training_loop import build_loader, build_optimizer, train_val_test_pt
+from utils.build_training_loop import build_loader, build_optimizer, train_val_test
 
 # create logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -117,7 +117,7 @@ def main():
     m.begin_run(train_loader=train_loader, val_loader=val_loader, test_loader=test_loader)
 
     # train and evaluate
-    train_val_test_pt(args=args, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader, 
+    train_val_test(args=args, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader, 
         model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, m=m, loss_fn_train=loss_fn_train)
 
     logger.info('Model finished!')

@@ -211,9 +211,9 @@ def update_args(args):
         args.update_lambda_second_phase_start_epoch = 20
         args.save_best_start_epoch = 1
         args.comment = 'test_run'
-        # dataset
         args.val_test_size = 0.8
         args.test_size = 0.5
+        args.acceptable_correlation_threshold = 0.99
 
     args.out_dir_main = results_folder
     args.model_name = f'{args.model}_loss_{args.loss_type}_skewed_{args.skewed_loss}_' \
