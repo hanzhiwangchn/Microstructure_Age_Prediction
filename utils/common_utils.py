@@ -217,7 +217,7 @@ def update_args(args):
 
     args.out_dir_main = results_folder
     args.model_name = f'{args.model}_loss_{args.loss_type}_skewed_{args.skewed_loss}_' \
-                      f'correlation_{args.correlation_type}_dataset_{args.image_modality}_' \
+                      f'modality_{args.image_modality}_dataset_{args.image_modality}_' \
                       f'{args.comment}_rnd_state_{args.random_state}'
     args.out_dir = f'{args.out_dir_main}/{args.model_name}'
     os.makedirs(args.out_dir, exist_ok=True)

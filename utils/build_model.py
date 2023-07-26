@@ -1,4 +1,4 @@
-import math, torch
+import math, torch, os
 import torch.nn as nn
 import monai
 import logging
@@ -26,6 +26,19 @@ def build_model(args):
                 torch.nn.init.kaiming_normal_(m.weight.data)
     if args.params_init != 'default':
         model.apply(weights_init)
+        
+    return model
+
+
+def build_model_test(args):
+    """build model for testing"""
+    if args.model == 'densenet':
+        model = build_densenet121_monai().to(args.device)
+    elif args.model == 'resnet':
+        model = ResNet(input_size=args.input_shape).to(args.device)
+
+    model.load_state_dict(state_dict=torch.load(os.path.join(args.out_dir, "Best_Model.pt")))
+    logger.info('Best Model loaded for testing')
         
     return model
 

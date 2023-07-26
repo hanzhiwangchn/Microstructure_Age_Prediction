@@ -7,7 +7,8 @@ from sklearn.linear_model import LinearRegression
 
 from utils.common_utils import calculate_correlation
 from utils.build_loss_function import build_loss_function
-from utils.build_model import build_densenet121_monai, ResNet
+from utils.build_model import build_model_test
+from utils.build_two_stage_correction import apply_two_stage_correction
 
 logger = logging.getLogger(__name__)
 
@@ -96,11 +97,15 @@ def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer
             m.display_epoch_results()
     
     # testing
-    evaluate_test_set_performance(args, test_loader, m)
+    model = evaluate_test_set_performance(args, test_loader, m)
 
     m.end_run()
     # save stats
-    m.save(os.path.join(args.out_dir, f'{args.model_name}_runtime_stats'))
+    m.save(os.path.join(args.out_dir, f'runtime_stats'))
+
+    # apply two-stage correction approach when using normal loss
+    if args.two_stage_correction:
+        apply_two_stage_correction(args, val_loader, model)
 
 
 def train(args, model, m, train_loader, optimizer, lr_scheduler, loss_fn_train):
@@ -178,12 +183,8 @@ def evaluate_test_set_performance(args, test_loader, m):
     for metric in all_metric_type:
         all_metrics[metric] = evaluate.load(metric)
 
-    if args.model == 'densenet':
-        model = build_densenet121_monai().to(args.device)
-    elif args.model == 'resnet':
-        model = ResNet(input_size=args.input_shape).to(args.device)
-
-    model.load_state_dict(state_dict=torch.load(os.path.join(args.out_dir, "Best_Model.pt")))
+    # load best model
+    model = build_model_test(args=args)
     model.eval()
 
     # save results to csv file
@@ -220,6 +221,8 @@ def evaluate_test_set_performance(args, test_loader, m):
     df_save['predicted_value'] = preds_tensor.squeeze().cpu().numpy()
     df_save['ground_truth'] = labels_tensor.squeeze().cpu().numpy()
     df_save.to_csv(os.path.join(args.out_dir, "performance_summary.csv"))
+
+    return model
 
 
 def test(args, model, m, test_loader):
