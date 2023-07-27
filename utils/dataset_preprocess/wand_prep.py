@@ -218,6 +218,9 @@ def save_wand_image_to_npy(image_modality, wand_id_age_dict, output_image_dir, i
     rnd_check = len(id_array) // 2
     assert wand_id_age_dict[id_array[rnd_check]] == age_array[rnd_check]
 
+    if image_modality == 'ICVF_NODDI':
+         img_array = np.squeeze(img_array, axis=-1)
+
     logger.info(f'{image_modality} images has shape {img_array.shape}; age has shape {age_array.shape}')
     np.save(os.path.join(output_image_dir, image_modality, f'subject_id_{image_modality}.npy'), id_array)
     np.save(os.path.join(output_image_dir, image_modality, f'subject_age_{image_modality}.npy'), age_array)

@@ -194,11 +194,11 @@ def update_args(args):
 
     if args.dataset == 'wand_compact':
         args.data_dir = os.path.join(WAND_NPY_DATA_DIR, args.image_modality)
-        args.num_train_epochs = 400
+        args.num_train_epochs = 200
         args.batch_size = 8
-        args.update_lambda_start_epoch = 150
-        args.update_lambda_second_phase_start_epoch = 250
-        args.save_best_start_epoch = 100
+        args.update_lambda_start_epoch = 50
+        args.update_lambda_second_phase_start_epoch = 100
+        args.save_best_start_epoch = 10
 
     # quick pipeline check setting
     if args.run_code_test:
