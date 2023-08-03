@@ -3,10 +3,10 @@ import numpy as np
 import pandas as pd
 import nibabel as nib
 
-# WAND_FULL_IMAGE_DIR stores each image modality and corresponding age. Different modalities 
-# have different ids. 
-# WAND_NPY_IMAGE_DIR stores a compact version of above dataset, where all modalities have the 
-# same ids. It is obvious smaller than the above dataset.
+# WAND_FULL_IMAGE_DIR stores each image modality and corresponding age. 
+# Different modalities have different ids. 
+# WAND_COMPACT_IMAGE_DIR stores a compact version of the above dataset. 
+# All modalities have the same ids.
 WAND_IMAGE_DIR = '/cubric/collab/314_wand/bids/'
 WAND_FULL_IMAGE_DIR = '/cubric/data/c1809127/314_wand_full/'
 WAND_COMPACT_IMAGE_DIR = '/cubric/data/c1809127/314_wand_compact/'
@@ -47,7 +47,7 @@ def build_wand_image_modality_dir_dict():
     """build a dict with keys being image modality and values being corresponding dirs"""
     image_modality_dir_dict = dict()
     image_modality_dir_dict['KFA_DKI'] = 'derivatives/DKI_dipywithgradcorr/preprocessed/'
-    image_modality_dir_dict['ICVF_NODDI'] = 'derivatives/NODDI_MDT/preprocessed/'
+    # image_modality_dir_dict['ICVF_NODDI'] = 'derivatives/NODDI_MDT/preprocessed/'
     image_modality_dir_dict['FA_CHARMED'] = 'derivatives/CHARMED/preprocessed/'
     image_modality_dir_dict['RD_CHARMED'] = 'derivatives/CHARMED/preprocessed/'
     image_modality_dir_dict['MD_CHARMED'] = 'derivatives/CHARMED/preprocessed/'
@@ -62,7 +62,7 @@ def build_wand_image_modality_fullname_dict():
     """build a dict with keys being image modality and values being corresponding file fullname"""
     image_modality_fullname_dict = dict()
     image_modality_fullname_dict['KFA_DKI'] = 'kurtosis_fractional_anisotropy_KFA.nii'
-    image_modality_fullname_dict['ICVF_NODDI'] = 'w_ic.w.nii'
+    # image_modality_fullname_dict['ICVF_NODDI'] = 'w_ic.w.nii'
     image_modality_fullname_dict['FA_CHARMED'] = 'CHARMED_denoisedMPPCA_driftCo_TED_gibbsCorrSubVoxShift_dtFit_nonlinear_FA.nii'
     image_modality_fullname_dict['RD_CHARMED'] = 'CHARMED_denoisedMPPCA_driftCo_TED_gibbsCorrSubVoxShift_dtFit_nonlinear_RD.nii'
     image_modality_fullname_dict['MD_CHARMED'] = 'CHARMED_denoisedMPPCA_driftCo_TED_gibbsCorrSubVoxShift_dtFit_nonlinear_MD.nii'

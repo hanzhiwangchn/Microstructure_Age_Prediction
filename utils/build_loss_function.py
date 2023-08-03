@@ -9,7 +9,7 @@ results_folder = 'model_ckpt_results'
 def build_loss_function(args):
     """build loss functions"""
     # NOTE: no matter what kind of tricks we use in training,
-    #  we should always focus the MAE on the testset.
+    #  we should always focus the MAE on the test-set.
     loss_fn_val = nn.L1Loss()
     loss_fn_test = nn.L1Loss()
 
