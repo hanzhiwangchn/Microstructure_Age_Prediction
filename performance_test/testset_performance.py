@@ -4,26 +4,38 @@ import pandas as pd
 from scipy import stats
 import itertools
 from matplotlib import pyplot as plt
-from utils.dataset_preprocess.wand_prep import build_wand_image_modality_dir_dict
 
 # Test set MAE and correlation evaluation
 
-LOSS_TYPE_LIST = ['L1_normal', 'L1_normal_corrected', 'L1_skewed']
-model_config = ['densenet']
-num_runs = 2
+LOSS_TYPE_LIST = ['L1_normal', 'L1_normal_corrected']
+model_config = ['resnet']
+num_runs = 6
 dataset = 'abide_symmetric'
-RESULT_DIRS = '~/model_ckpt_results/'
+RESULT_DIRS = '~/model_ckpt_results/model_ckpt_results'
 save_plot_dir = '../Plots/temp'
 
 # f'{args.model}_loss_{args.loss_type}_skewed_{args.skewed_loss}_' \
 #                       f'modality_{args.image_modality}_dataset_{args.image_modality}_' \
 #                       f'{args.comment}_rnd_state_{args.random_state}'
+def build_wand_image_modality_dir_dict():
+    """build a dict with keys being image modality and values being corresponding dirs"""
+    image_modality_dir_dict = dict()
+    image_modality_dir_dict['KFA_DKI'] = 'derivatives/DKI_dipywithgradcorr/preprocessed/'
+    # image_modality_dir_dict['ICVF_NODDI'] = 'derivatives/NODDI_MDT/preprocessed/'
+    image_modality_dir_dict['FA_CHARMED'] = 'derivatives/CHARMED/preprocessed/'
+    image_modality_dir_dict['RD_CHARMED'] = 'derivatives/CHARMED/preprocessed/'
+    image_modality_dir_dict['MD_CHARMED'] = 'derivatives/CHARMED/preprocessed/'
+    # image_modality_dir_dict['AD_CHARMED'] = 'derivatives/CHARMED/preprocessed/'
+    image_modality_dir_dict['FRtot_CHARMED'] = 'derivatives/CHARMED/preprocessed/'
+    # image_modality_dir_dict['MWF_mcDESPOT'] = 'derivatives/mcDESPOT/preprocessed/'
+
+    return image_modality_dir_dict
 
 
 def build_parser_for_evaluation():
     parser = argparse.ArgumentParser(description='Microstructure Age Prediction Evaluation')
-    parser.add_argument('--model', type=str, default='densenet', choices=['densenet', 'resnet'])
-    parser.add_argument('--num-runs', type=int, default=2)
+    parser.add_argument('--model', type=str, default='resnet', choices=['densenet', 'resnet'])
+    parser.add_argument('--num-runs', type=int, default=6)
     return parser
 
 def get_model_results(args):
@@ -34,16 +46,22 @@ def get_model_results(args):
         for random_state in range(1000, 1001):
             dfs_temp_2 = []
             for i in range(args.num_runs):
-                model_name = f'{args.model}_loss_L1_skewed_{args.skewed_loss}_' \
+                if loss_type == 'L1_normal':
+                    model_name = f'{args.model}_loss_L1_skewed_False_' \
                                  f'modality_{args.image_modality}_dataset_{args.image_modality}_' \
                                  f'run{i}_rnd_state_{random_state}'
-                if loss_type == 'L1_normal':
                     df_temp = pd.read_csv(
                         os.path.join(RESULT_DIRS, model_name, 'performance_summary.csv'))
                 elif loss_type == 'L1_skewed':
+                    model_name = f'{args.model}_loss_L1_skewed_True_' \
+                                 f'modality_{args.image_modality}_dataset_{args.image_modality}_' \
+                                 f'run{i}_rnd_state_{random_state}'
                     df_temp = pd.read_csv(
                         os.path.join(RESULT_DIRS, model_name, 'performance_summary.csv'))
                 elif loss_type == 'L1_normal_corrected':
+                    model_name = f'{args.model}_loss_L1_skewed_False_' \
+                                 f'modality_{args.image_modality}_dataset_{args.image_modality}_' \
+                                 f'run{i}_rnd_state_{random_state}'
                     df_temp = pd.read_csv(
                         os.path.join(RESULT_DIRS, model_name, 'corrected_performance_summary.csv'))
 
@@ -180,17 +198,17 @@ def evaluation_for_each_modality():
         print(f"{image_modality}")
         dfs = get_model_results(args)
 
-        assert dfs[0][7]['ground_truth'].values.tolist() == dfs[1][7]['ground_truth'].values.tolist()
-        assert dfs[1][7]['ground_truth'].values.tolist() != dfs[2][4]['ground_truth'].values.tolist()
+        # assert dfs[0][7]['ground_truth'].values.tolist() == dfs[1][7]['ground_truth'].values.tolist()
+        # assert dfs[1][7]['ground_truth'].values.tolist() != dfs[2][4]['ground_truth'].values.tolist()
         assert len(dfs) == len(LOSS_TYPE_LIST)
-        assert len(dfs[-1]) == num_runs
+        # assert len(dfs[-1]) == num_runs
 
         corr_list = calculate_correlation(dfs)
         mae_list = calculate_mae(dfs)
         print_stats(mae_list, category='mae')
         print_stats(corr_list, category='correlation')
 
-        desired_pairs = [(0, 1, 2)]
+        desired_pairs = [(0, 1)]
         desired_pairs = [list(itertools.combinations(i, 2)) for i in desired_pairs]
         desired_pairs = [j for i in desired_pairs for j in i]
 

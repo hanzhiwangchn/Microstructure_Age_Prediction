@@ -36,7 +36,7 @@ def build_loader(args, dataset_train, dataset_val, dataset_test):
 
 # ------------------- build optimizer ---------------------
 def build_optimizer(model, train_loader, args):
-    """build optimizer and learning-rate scheduler"""
+    """build optimizer and learning rate scheduler"""
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
     num_update_steps_per_epoch = math.ceil(len(train_loader) / args.gradient_accumulation_steps)
@@ -223,42 +223,6 @@ def evaluate_test_set_performance(args, test_loader, m):
     df_save.to_csv(os.path.join(args.out_dir, "performance_summary.csv"))
 
     return model
-
-
-def test(args, model, m, test_loader):
-    """test part"""
-    all_metrics, all_metrics_results = dict(), dict()
-    all_metric_type = ['mae']
-    for metric in all_metric_type:
-        all_metrics[metric] = evaluate.load(metric)
-
-    # if not args.test:
-    #     # temporarily change the argument, borrow build_model implementation to load models
-    #     args.test = True
-    #     model = build_model(args)
-    #     model.to(args.device)
-    #     args.test = False
-    
-    model.eval()
-    with torch.no_grad():
-        for batch in test_loader:
-            batch = {k: v.to(args.device) for k, v in batch.items()}
-            outputs = model(batch['image'])
-
-            assert outputs.shape == batch['label'].shape
-            assert len(outputs.shape) == 2
-
-            for metric in all_metric_type:
-                all_metrics[metric].add_batch(predictions=outputs, references=batch["label"])
-
-    for metric in all_metric_type:
-        if metric in ["recall", "precision", "f1"]:
-            all_metrics_results.update(all_metrics[metric].compute(average='weighted'))
-        else:
-            all_metrics_results.update(all_metrics[metric].compute())
-    
-    # track test metrics
-    m.collect_test_metrics(metric_results=all_metrics_results)
 
 
 def moving_average(a, n=3):

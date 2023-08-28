@@ -23,9 +23,6 @@ def build_loss_function(args):
             loss_fn_train = nn.L1Loss()
         elif args.loss_type == 'L2':
             loss_fn_train = nn.MSELoss()
-        elif args.loss_type == 'SVR':
-            # no bracket after svr, pls see its implementation
-            loss_fn_train = svr
     return loss_fn_train, loss_fn_val, loss_fn_test
 
 

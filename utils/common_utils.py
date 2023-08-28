@@ -88,6 +88,14 @@ class ToTensor_MRI(object):
         return torch.from_numpy(image), torch.from_numpy(label)
 
 
+def medical_augmentation_pt(images):
+    training_transform = tio.Compose([
+        tio.RandomNoise(p=0.5),  # Gaussian noise 50% of times
+        tio.RandomFlip(flip_probability=0.5),
+    ])
+    return training_transform(images)
+
+
 # ------------------- Run Manager ---------------------
 class RunManager:
     """capture model stats"""
@@ -216,8 +224,8 @@ def update_args(args):
         args.acceptable_correlation_threshold = 0.99
 
     args.out_dir_main = results_folder
-    args.model_name = f'{args.model}_loss_{args.loss_type}_skewed_{args.skewed_loss}_' \
-                      f'modality_{args.image_modality}_dataset_{args.image_modality}_' \
+    # model name using a single image modality
+    args.model_name = f'{args.model}_loss_{args.loss_type}_skewed_{args.skewed_loss}_modality_{args.image_modality}_' \
                       f'{args.comment}_rnd_state_{args.random_state}'
     args.out_dir = f'{args.out_dir_main}/{args.model_name}'
     os.makedirs(args.out_dir, exist_ok=True)
@@ -312,12 +320,3 @@ def calculate_correlation_coefficient(preds, labels, args):
         error = preds - labels
         corr_coef = stats.spearmanr(error.cpu(), labels.cpu())[0]
     return corr_coef
-
-
-def medical_augmentation_pt(images):
-    training_transform = tio.Compose([
-        tio.RandomBlur(p=0.5),  # blur 50% of times
-        tio.RandomNoise(p=0.5),  # Gaussian noise 50% of times
-        tio.RandomFlip(flip_probability=0.5),
-    ])
-    return training_transform(images)

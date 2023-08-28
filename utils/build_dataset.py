@@ -47,7 +47,10 @@ def build_dataset_wand(args):
     assert len(images) == len(df)
 
     # assign a categorical label to Age for Stratified Split
-    df['Age_categorical'] = pd.qcut(df['Age'], 5, labels=[i for i in range(5)])
+    df['Age_categorical'] = pd.qcut(df['Age'], 10, labels=[i for i in range(10)])
+    # Due to the small number of subjects, age_categorical 2 & 5 will be assigned again
+    df.loc[df['Age_categorical'] == 2, 'Age_categorical'] = 3
+    df.loc[df['Age_categorical'] == 5, 'Age_categorical'] = 4
 
     # Stratified train validation-test Split
     split = StratifiedShuffleSplit(test_size=args.val_test_size, random_state=args.random_state)
@@ -80,7 +83,7 @@ def build_dataset_wand(args):
     input_shape = train_images.shape[1:]
     del images
 
-    # add dimension for labels: (32,) -> (32, 1)
+    # add dimension for labels: (batch_size,) -> (batch_size, 1)
     train_labels = np.expand_dims(df.loc[train_index, 'Age'].values, axis=1).astype(np.float32)
     validation_labels = np.expand_dims(df.loc[validation_index, 'Age'].values, axis=1).astype(np.float32)
     test_labels = np.expand_dims(df.loc[test_index, 'Age'].values, axis=1).astype(np.float32)

@@ -2,6 +2,8 @@ import math, torch, os
 import torch.nn as nn
 import monai
 import logging
+from torchsummary import summary
+
 
 logger = logging.getLogger(__name__)
 
@@ -9,7 +11,7 @@ logger = logging.getLogger(__name__)
 def build_model(args):
     """main function for model building"""
     if args.model == 'densenet':
-        model = build_densenet121_monai()
+        model = build_densenet_monai()
     elif args.model == 'resnet':
         model = ResNet(input_size=args.input_shape)
 
@@ -33,7 +35,7 @@ def build_model(args):
 def build_model_test(args):
     """build model for testing"""
     if args.model == 'densenet':
-        model = build_densenet121_monai().to(args.device)
+        model = build_densenet_monai().to(args.device)
     elif args.model == 'resnet':
         model = ResNet(input_size=args.input_shape).to(args.device)
 
@@ -44,8 +46,14 @@ def build_model_test(args):
 
 
 # ------------------- Scratch DenseNet from MONAI ---------------------
-def build_densenet121_monai():
-    model = monai.networks.nets.DenseNet121(spatial_dims=3, in_channels=1, out_channels=1)
+def build_densenet_monai():
+    model = monai.networks.nets.DenseNet(spatial_dims=3, in_channels=1, out_channels=1, 
+                                         init_features=16, growth_rate=12, block_config=(4, 8, 12, 10))
+    return model
+
+
+def build_EfficientNet_monai():
+    model = monai.networks.nets.EfficientNet(spatial_dims=3, in_channels=1, out_channels=1)
     return model
 
 
@@ -124,3 +132,8 @@ class ResNet(nn.Module):
         out = self.layer5(out)
         out = self.fc(out)
         return out
+
+
+if __name__ == '__main__':
+    model = build_densenet_monai()
+    summary(model, (1, 110, 110, 66))
