@@ -67,9 +67,9 @@ def prepare_stacking_training_data(args, model, train_loader, val_loader, test_l
         assert test_preds.shape == test_labels.shape
         assert test_preds.shape[1] == 1
 
-    np.save(f'{args.image_modality}_train_feature.npy', train_preds.numpy())
-    np.save(f'{args.image_modality}_train_label.npy', train_labels.numpy())
-    np.save(f'{args.image_modality}_val_feature.npy', val_preds.numpy())
-    np.save(f'{args.image_modality}_val_label.npy', val_labels.numpy())
-    np.save(f'{args.image_modality}_test_feature.npy', test_preds.numpy())
-    np.save(f'{args.image_modality}_test_label.npy', test_labels.numpy())
+    np.save(f'{args.image_modality}_train_feature.npy', train_preds.cpu().numpy())
+    np.save(f'{args.image_modality}_train_label.npy', train_labels.cpu().numpy())
+    np.save(f'{args.image_modality}_val_feature.npy', val_preds.cpu().numpy())
+    np.save(f'{args.image_modality}_val_label.npy', val_labels.cpu().numpy())
+    np.save(f'{args.image_modality}_test_feature.npy', test_preds.cpu().numpy())
+    np.save(f'{args.image_modality}_test_label.npy', test_labels.cpu().numpy())
