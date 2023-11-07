@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 import os
 
-IMAGE_MODALITY_LIST = ['KFA_DKI', 'FA_CHARMED', 'RD_CHARMED', 'MD_CHARMED', 'FRtot_CHARMED']
-LOSS_TYPE_LIST = ['L1_normal', 'L1_normal_corrected', 'L1_skewed']
-RESULT_DIRS = '~/model_ckpt_results/'
+IMAGE_MODALITY_LIST = ['KFA_DKI', 'FA_CHARMED', 'RD_CHARMED', 'MD_CHARMED', 'FRtot_CHARMED', 'ICVF_NODDI']
+LOSS_TYPE_LIST = ['L1_normal', 'L1_normal_corrected']
+RESULT_DIRS = '~/new_results/model_ckpt_results/'
 
 
 def get_model_results(args):
@@ -28,6 +28,38 @@ def get_model_results(args):
                 elif loss_type == 'L1_normal_corrected':
                     model_name = f'{args.model}_loss_L1_skewed_False_modality_{args.image_modality}_' \
                                  f'run{i}_rnd_state_{random_state}'
+                    df_temp = pd.read_csv(
+                        os.path.join(RESULT_DIRS, model_name, 'corrected_performance_summary.csv'))
+
+                df_temp['error'] = df_temp['predicted_value'] - df_temp['ground_truth']
+                df_temp['abs_error'] = df_temp['error'].abs()
+                dfs_temp_2.append(df_temp)
+            dfs_temp.append(dfs_temp_2)
+        dfs.append(dfs_temp)
+    return dfs
+
+
+def get_model_results_per_run(args):
+    """read csv files for all runs"""
+    dfs = []
+    for loss_type in LOSS_TYPE_LIST:
+        dfs_temp = []
+        for random_state in range(1000, 1001):
+            dfs_temp_2 = []
+            for image_modality in IMAGE_MODALITY_LIST:
+                if loss_type == 'L1_normal':
+                    model_name = f'{args.model}_loss_L1_skewed_False_modality_{image_modality}_' \
+                                 f'run{args.run_idx}_rnd_state_{random_state}'
+                    df_temp = pd.read_csv(
+                        os.path.join(RESULT_DIRS, model_name, 'performance_summary.csv'))
+                elif loss_type == 'L1_skewed':
+                    model_name = f'{args.model}_loss_L1_skewed_True_modality_{image_modality}_' \
+                                 f'run{args.run_idx}_rnd_state_{random_state}'
+                    df_temp = pd.read_csv(
+                        os.path.join(RESULT_DIRS, model_name, 'performance_summary.csv'))
+                elif loss_type == 'L1_normal_corrected':
+                    model_name = f'{args.model}_loss_L1_skewed_False_modality_{image_modality}_' \
+                                 f'run{args.run_idx}_rnd_state_{random_state}'
                     df_temp = pd.read_csv(
                         os.path.join(RESULT_DIRS, model_name, 'corrected_performance_summary.csv'))
 

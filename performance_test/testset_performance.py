@@ -3,13 +3,13 @@ from test_utils import get_model_results, print_stats, calculate_mae, calculate_
     mae_mean_std, corr_mean_std
 
 # Test set MAE and correlation evaluation
-IMAGE_MODALITY_LIST = ['KFA_DKI', 'FA_CHARMED', 'RD_CHARMED', 'MD_CHARMED', 'FRtot_CHARMED']
+IMAGE_MODALITY_LIST = ['KFA_DKI', 'FA_CHARMED', 'RD_CHARMED', 'MD_CHARMED', 'FRtot_CHARMED', 'ICVF_NODDI']
 
 
 def build_parser_for_evaluation():
     parser = argparse.ArgumentParser(description='Microstructure Age Prediction Evaluation')
     parser.add_argument('--model', type=str, default='densenet', choices=['densenet', 'resnet'])
-    parser.add_argument('--num-runs', type=int, default=6)
+    parser.add_argument('--num-runs', type=int, default=5)
     return parser
 
 
@@ -22,7 +22,7 @@ def single_model_evaluation_for_each_modality():
 
         print(f"{image_modality}")
         dfs = get_model_results(args)
-        assert dfs[1][0][1]['ground_truth'].values.tolist() == dfs[2][0][3]['ground_truth'].values.tolist()
+        assert dfs[1][0][1]['ground_truth'].values.tolist() == dfs[0][0][3]['ground_truth'].values.tolist()
 
         corr_list = calculate_correlation(dfs)
         mae_list = calculate_mae(dfs)
