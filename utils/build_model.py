@@ -44,6 +44,15 @@ def build_model_test(args):
         
     return model
 
+def build_model_stacking(args):
+    if args.model == 'densenet':
+        model = build_densenet_monai().to(args.device)
+    elif args.model == 'resnet':
+        model = ResNet(input_size=args.input_shape).to(args.device)
+
+    model.load_state_dict(state_dict=torch.load(os.path.join(args.stacking_best_model_dir, f"{args.image_modality}_Best_Model.pt")))
+    logger.info(f'Best Model loaded for stacking iteration: {args.image_modality}')
+
 
 # ------------------- Scratch DenseNet from MONAI ---------------------
 def build_densenet_monai():

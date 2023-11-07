@@ -2,9 +2,10 @@ import argparse, logging, os
 
 from utils.common_utils import RunManager, update_args
 from utils.build_dataset import build_dataset
-from utils.build_model import build_model
+from utils.build_model import build_model, build_model_stacking
 from utils.build_loss_function import build_loss_function
 from utils.build_training_loop import build_loader, build_optimizer, train_val_test
+from utils.build_model_stacking import prepare_stacking_training_data
 
 # create logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -83,7 +84,7 @@ def build_parser():
     parser.add_argument('--test', action='store_true', default=False,
                         help='testing')
     # stacking
-    parser.add_argument('--run-stacking', action='store_true', default=False,
+    parser.add_argument('--run-stacking', action='store_true', default=True,
                         help='run stacking')
     parser.add_argument('--stacking-method', type=str, default='model-wise', choices=['model-wise', 'data-wise'],
                         help='specify which stacking data to use')
@@ -104,7 +105,10 @@ def main():
     logger.info('Dataset loaded')
 
     # build model
-    model = build_model(args=args)
+    if args.run_stacking:
+        model = build_model_stacking(args=args)
+    else:
+        model = build_model(args=args)
     logger.info('Model loaded')
 
     # build loss function
@@ -113,18 +117,21 @@ def main():
     # build dataloader
     train_loader, val_loader, test_loader = build_loader(args=args, dataset_train=dataset_train, 
         dataset_val=dataset_val, dataset_test=dataset_test)
+    
+    if not args.run_stacking:
+        # build optimizer
+        optimizer, lr_scheduler = build_optimizer(model=model, train_loader=train_loader, args=args)
 
-    # build optimizer
-    optimizer, lr_scheduler = build_optimizer(model=model, train_loader=train_loader, args=args)
+        # build RunManager to save stats from training
+        m = RunManager(args=args)
+        m.begin_run(train_loader=train_loader, val_loader=val_loader, test_loader=test_loader)
 
-    # build RunManager to save stats from training
-    m = RunManager(args=args)
-    m.begin_run(train_loader=train_loader, val_loader=val_loader, test_loader=test_loader)
+        # train and evaluate
+        train_val_test(args=args, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader, 
+            model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, m=m, loss_fn_train=loss_fn_train)
 
-    # train and evaluate
-    train_val_test(args=args, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader, 
-        model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, m=m, loss_fn_train=loss_fn_train)
-
+    else:
+        prepare_stacking_training_data(args, model, train_loader, val_loader, test_loader)
     logger.info('Model finished!')
 
 

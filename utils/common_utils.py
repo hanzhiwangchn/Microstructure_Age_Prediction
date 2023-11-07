@@ -198,7 +198,7 @@ def update_args(args):
     logger.info(f'Found device: {args.device}')
 
     if args.dataset == 'wand_compact':
-        args.data_dir = os.path.join(WAND_NPY_DATA_DIR, args.image_modality)
+        args.data_dir = '../../Datasets/'
         args.num_train_epochs = 200
         args.batch_size = 4
         args.update_lambda_start_epoch = 50
@@ -225,6 +225,7 @@ def update_args(args):
     args.model_name = f'{args.model}_loss_{args.loss_type}_skewed_{args.skewed_loss}_modality_{args.image_modality}_' \
                       f'{args.comment}_rnd_state_{args.random_state}'
     args.out_dir = f'{args.out_dir_main}/{args.model_name}'
+    args.stacking_best_model_dir = 'best_models_stacking'
     os.makedirs(args.out_dir, exist_ok=True)
     return args
 

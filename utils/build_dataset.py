@@ -90,8 +90,12 @@ def build_dataset_wand(args):
                 f'validation labels shape: {validation_labels.shape}, testing labels shape: {test_labels.shape}')
 
     # Pytorch Dataset for train set. Apply data augmentation if needed using "torchio"
-    dataset_train = TrainDataset(images=train_images, labels=train_labels, 
-        transform=transforms.Compose([ToTensor_MRI()]), medical_augment=medical_augmentation_pt)
+    if not args.run_stacking:
+        dataset_train = TrainDataset(images=train_images, labels=train_labels, 
+            transform=transforms.Compose([ToTensor_MRI()]), medical_augment=medical_augmentation_pt)
+    else:
+        dataset_train = TrainDataset(images=train_images, labels=train_labels, 
+            transform=transforms.Compose([ToTensor_MRI()]))
     del train_images, train_labels
 
     # Pytorch Dataset for validation set

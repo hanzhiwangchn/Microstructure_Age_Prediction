@@ -17,7 +17,11 @@ logger = logging.getLogger(__name__)
 def build_loader(args, dataset_train, dataset_val, dataset_test):
     """main function for dataloader building"""
     # build data-loader configurations
-    train_kwargs = {'batch_size': args.batch_size, 'shuffle': True}
+    if args.run_stacking:
+        train_kwargs = {'batch_size': args.batch_size, 'shuffle': False}
+    else:
+        train_kwargs = {'batch_size': args.batch_size, 'shuffle': True}
+        
     validation_kwargs = {'batch_size': args.batch_size, 'shuffle': False}
     test_kwargs = {'batch_size': args.batch_size, 'shuffle': False}
     if torch.cuda.is_available():
