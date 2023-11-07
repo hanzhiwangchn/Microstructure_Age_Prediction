@@ -198,7 +198,7 @@ def update_args(args):
     logger.info(f'Found device: {args.device}')
 
     if args.dataset == 'wand_compact':
-        args.data_dir = '../../Datasets/'
+        args.data_dir = os.path.join(WAND_NPY_DATA_DIR, args.image_modality)
         args.num_train_epochs = 200
         args.batch_size = 4
         args.update_lambda_start_epoch = 50
