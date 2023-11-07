@@ -12,10 +12,7 @@ WAND_NPY_DATA_DIR = '/cubric/data/c1809127/314_wand_compact'
 
 # ------------------- Pytorch Dataset ---------------------
 class TrainDataset(torch.utils.data.Dataset):
-    """
-    build training dataset
-    Note that Huggingface requires that __getitem__ method returns dict object
-    """
+    """build training dataset"""
     def __init__(self, images, labels, transform=None, medical_augment=None):
         self.transform = transform
         self.medical_augment = medical_augment
@@ -90,7 +87,7 @@ class ToTensor_MRI(object):
 
 def medical_augmentation_pt(images):
     training_transform = tio.Compose([
-        tio.RandomNoise(p=0.5),  # Gaussian noise 50% of times
+        # tio.RandomNoise(p=0.5),  # Gaussian noise 50% of times
         tio.RandomFlip(flip_probability=0.5),
     ])
     return training_transform(images)
@@ -203,7 +200,7 @@ def update_args(args):
     if args.dataset == 'wand_compact':
         args.data_dir = os.path.join(WAND_NPY_DATA_DIR, args.image_modality)
         args.num_train_epochs = 200
-        args.batch_size = 8
+        args.batch_size = 4
         args.update_lambda_start_epoch = 50
         args.update_lambda_second_phase_start_epoch = 100
         args.save_best_start_epoch = 10

@@ -25,7 +25,7 @@ def build_parser():
     parser.add_argument('--model', type=str, default='densenet', choices=['densenet', 'resnet'],
                         help='model configurations')
     parser.add_argument('--loss-type', type=str, default='L1', choices=['L1', 'L2'],
-                        help='normal loss function configurations')
+                        help='ordinary loss function configurations')
     parser.add_argument('--correlation-type', type=str, default='pearson', choices=['pearson', 'spearman'],
                         help='correlation metric configurations')
     parser.add_argument('--skewed-loss', action='store_true', default=False,
@@ -48,7 +48,7 @@ def build_parser():
     parser.add_argument('--two-stage-correction', action='store_true', default=False,
                         help='use the two-stage correction approach for the normal loss')
     # frequently used settings
-    parser.add_argument('--dataset', type=str, default='wand_compact', choices=['wand_compact', 'wand_full'],
+    parser.add_argument('--dataset', type=str, default='wand_compact', choices=['wand_compact'],
                         help='specify which dataset to use')
     parser.add_argument('--image-modality', type=str, default='KFA_DKI', 
                         choices=['KFA_DKI', 'ICVF_NODDI', 'FA_CHARMED', 'RD_CHARMED', 'MD_CHARMED', 
@@ -82,6 +82,11 @@ def build_parser():
     # testing
     parser.add_argument('--test', action='store_true', default=False,
                         help='testing')
+    # stacking
+    parser.add_argument('--run-stacking', action='store_true', default=False,
+                        help='run stacking')
+    parser.add_argument('--stacking-method', type=str, default='model-wise', choices=['model-wise', 'data-wise'],
+                        help='specify which stacking data to use')
     return parser
 
 

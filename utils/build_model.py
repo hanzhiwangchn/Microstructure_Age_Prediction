@@ -48,7 +48,7 @@ def build_model_test(args):
 # ------------------- Scratch DenseNet from MONAI ---------------------
 def build_densenet_monai():
     model = monai.networks.nets.DenseNet(spatial_dims=3, in_channels=1, out_channels=1, 
-                                         init_features=16, growth_rate=12, block_config=(4, 8, 12, 10))
+                                         init_features=16, growth_rate=8, block_config=(4, 8, 12, 10))
     return model
 
 

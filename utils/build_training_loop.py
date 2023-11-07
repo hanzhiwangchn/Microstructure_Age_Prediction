@@ -45,7 +45,7 @@ def build_optimizer(model, train_loader, args):
     lr_scheduler = get_scheduler(name=args.lr_scheduler_type, optimizer=optimizer,
         num_warmup_steps=args.num_warmup_steps * args.gradient_accumulation_steps,
         num_training_steps=args.max_train_steps * args.gradient_accumulation_steps)
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+    # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
     return optimizer, lr_scheduler
 
@@ -177,7 +177,7 @@ def val(args, model, m, val_loader):
 
 
 def evaluate_test_set_performance(args, test_loader, m):
-    """evaluate performance here, we need to load the best model instead of the model at epoch 300"""
+    """evaluate performance here, we need to load the best model"""
     all_metrics, all_metrics_results = dict(), dict()
     all_metric_type = ['mae']
     for metric in all_metric_type:

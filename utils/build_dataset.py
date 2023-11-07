@@ -15,8 +15,7 @@ def build_dataset(args):
     """main function for dataset building"""
     if args.dataset == 'wand_compact':
         dataset_train, dataset_val, dataset_test, lim, input_shape, median_age = build_dataset_wand(args)
-    elif args.dataset == 'wand_full':
-        dataset_train, dataset_val, dataset_test, lim, input_shape, median_age = build_dataset_wand(args)
+
     # update arguments
     args.age_limits = lim
     args.input_shape = input_shape
@@ -26,9 +25,7 @@ def build_dataset(args):
 
 # ------------------- WAND Dataset ---------------------
 def build_dataset_wand(args):
-    """
-    load WAND data
-    """
+    """load WAND data"""
     # load data(in .npy format)
     images = np.load(os.path.join(args.data_dir, f'subject_images_{args.image_modality}.npy'))
     age = np.load(os.path.join(args.data_dir, f'subject_age_{args.image_modality}.npy'))
@@ -73,7 +70,7 @@ def build_dataset_wand(args):
     validation_index = validation_test_index[validation_index]
     test_index = validation_test_index[test_index]
 
-    # ensure there is no duplicated index in 3 data-sets
+    # ensure there is no duplicated index in 3 datasets
     assert sorted(train_index.tolist() + validation_index.tolist() + test_index.tolist()) == list(range(len(df)))
 
     # get train/validation/test set
@@ -92,17 +89,17 @@ def build_dataset_wand(args):
                 f'testing images shape: {test_images.shape}, training labels shape: {train_labels.shape}, '
                 f'validation labels shape: {validation_labels.shape}, testing labels shape: {test_labels.shape}')
 
-    # Pytorch Data-set for train set. Apply data augmentation if needed using "torchio"
+    # Pytorch Dataset for train set. Apply data augmentation if needed using "torchio"
     dataset_train = TrainDataset(images=train_images, labels=train_labels, 
         transform=transforms.Compose([ToTensor_MRI()]), medical_augment=medical_augmentation_pt)
     del train_images, train_labels
 
-    # Pytorch Data-set for validation set
+    # Pytorch Dataset for validation set
     dataset_val = ValidationDataset(images=validation_images, labels=validation_labels,
                                            transform=transforms.Compose([ToTensor_MRI()]))
     del validation_images, validation_labels
 
-    # Pytorch Data-set for test set
+    # Pytorch Dataset for test set
     dataset_test = TestDataset(images=test_images, labels=test_labels,
                                transform=transforms.Compose([ToTensor_MRI()]))
     del test_images, test_labels
