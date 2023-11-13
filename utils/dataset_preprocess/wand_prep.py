@@ -2,6 +2,7 @@ import re, os, json, gzip, shutil, logging, argparse
 import numpy as np
 import pandas as pd
 import nibabel as nib
+import filecmp
 
 # WAND_FULL_IMAGE_DIR stores each image modality and corresponding age. 
 # Different modalities have different ids. 
@@ -73,17 +74,18 @@ def build_wand_image_modality_fullname_dict():
     return image_modality_fullname_dict
 
 
-def build_wand_tract_modality_fullname_dict():
-    """build a dict with keys being tract modality and values being corresponding file fullname"""
+def build_wand_tract_metric_fullname_dict():
+    """build a dict with keys being tract metric and values being corresponding file fullname"""
     tract_fullname_dict = dict()
-    tract_fullname_dict['KFA_DKI'] = 'kurtosis_fractional_anisotropy_KFA_cm.txt'
-    tract_fullname_dict['ICVF_NODDI'] = 'w_ic.w_cm.txt'
-    tract_fullname_dict['FA_CHARMED'] = 'CHARMED_denoisedMPPCA_driftCo_TED_gibbsCorrSubVoxShift_dtFit_nonlinear_FA_cm.txt'
-    tract_fullname_dict['RD_CHARMED'] = 'CHARMED_denoisedMPPCA_driftCo_TED_gibbsCorrSubVoxShift_dtFit_nonlinear_RD_cm.txt'
-    tract_fullname_dict['MD_CHARMED'] = 'CHARMED_denoisedMPPCA_driftCo_TED_gibbsCorrSubVoxShift_dtFit_nonlinear_MD_cm.txt'
-    tract_fullname_dict['AD_CHARMED'] = 'CHARMED_denoisedMPPCA_driftCo_TED_gibbsCorrSubVoxShift_AD_MRtrix_cm.txt'
-    tract_fullname_dict['FRtot_CHARMED'] = 'CHARMED_denoisedMPPCA_driftCo_TED_gibbsCorrSubVoxShift_charmed_standard_FRtot_cm.txt'
-    tract_fullname_dict['MWF_mcDESPOT'] = 'mcDESPOT_3C_f_m_mcf_cm.txt'
+    tract_fullname_dict['KFA_DKI'] = 'allsubs_kurtosis_fractional_anisotropy_KFA.txt'
+    tract_fullname_dict['ICVF_NODDI'] = 'allsubs_ICVF.txt'
+    tract_fullname_dict['AD_CHARMED'] = 'allsubs_fractional_anisotropy_AD.txt'
+    tract_fullname_dict['FA_CHARMED'] = 'allsubs_fractional_anisotropy_FA.txt'
+    tract_fullname_dict['RD_CHARMED'] = 'allsubs_radial_diffusivity_RD.txt'
+    tract_fullname_dict['MD_CHARMED'] = 'allsubs_mean_diffusivity_MD.txt'
+    tract_fullname_dict['FRtot_CHARMED'] = 'allsubs_CHARMED_FRtot.txt'
+    tract_fullname_dict['MWF_mcDESPOT'] = 'allsubs_mcDESPOT_3C_f_m_mcf.txt'
+    # tract_fullname_dict['QMT'] = 'allsubs_QMT_f_b_mcf.txt'
 
     return tract_fullname_dict
 
@@ -123,7 +125,7 @@ def prep_all_wand_images(args):
         # find common ids between age and modalities
         id_list_available = id_list_with_age.intersection(id_list_with_image)
         logger.info(f'number of common ids for all modalities and age: {len(id_list_available)}')
-
+ 
         # In compact version, id_list_available is updated for all modalities to make sure 
         # all modalities are of the same length as .npy file
         for modality in image_modality_dir_dict.keys():
@@ -241,32 +243,48 @@ def id_ordering_check(image_modality_dir_dict, output_image_dir):
     logger.info('id ordering check passed')
 
 
-def prep_tract_metrics(wand_id_dir):
-    full_metrics_dir = os.path.join(WAND_IMAGE_DIR, 'derivatives/tract_corr/analysis')
-    with open(wand_id_dir) as f:
-        wand_id_dict = json.load(f)
-    id_list_of_age = set(wand_id_dict.keys())
+def prep_tract_metrics():
+    """prepare tract metrics value for age prediction"""
+    # load age json file
+    with open('/Users/hanzhiwang/PycharmProjects/Microstructure_Age_Prediction/wand_age.json') as f:
+        wand_id_age_dict = json.load(f)
+    id_list_of_age = set(wand_id_age_dict.keys())
 
-    id_list_of_metrics = list()
-    for i in os.listdir(path=full_metrics_dir):
-        id_list_of_metrics.append(i.split('_')[0].split('-')[-1])
-    id_list_of_metrics = set(id_list_of_metrics)
-    id_list_available = id_list_of_age.intersection(id_list_of_metrics)
+    # find common ids in all 8 tract metrics and remove subject if their tract of interest is not 29
+    id_dict = dict()
+    prefix = '/Users/hanzhiwang/Datasets/tract_metrics/314_wand_tract_corr/analysis/'
+    tract_fullname_dict = build_wand_tract_metric_fullname_dict()
+    for tract_metric in tract_fullname_dict.keys():
+        df = pd.read_csv(prefix + tract_fullname_dict[tract_metric], sep=" ", 
+                 header=None, names=['sub_id', 'segments', 'metrics', 'values'])
+        df_full_segments = df.groupby("sub_id").filter(lambda x: len(x) == 29)
+        id_dict[tract_metric] = set([i.split('-')[-1] for i in set(df_full_segments.sub_id.to_list())])
 
-    tract_fullname_dict = build_wand_tract_modality_fullname_dict()
-    dict1 = dict()
-    for j in id_list_available:
-        dict1[j] = []
-        for each in sorted(tract_fullname_dict.keys()):
-            df = pd.read_csv(f'sub-{j}_{tract_fullname_dict[each]}', sep=" ", 
-                header=None, names=['sub_id', 'tract', 'metrics', 'values'])
-            dict[j].append(df['values'].tolist())
-        assert len(dict1[j]) == 8
-    pass
+    common_id = set.intersection(*(set(val) for val in id_dict.values()))
+    # find common id with age file
+    common_id = sorted(common_id.intersection(id_list_of_age))
+
+    age = np.array([int(wand_id_age_dict[i]) for i in sorted(common_id)])
+    np.save('tract_age_compact.npy', age)
+    common_id = sorted(['sub-' + i for i in common_id])
+
+    full_dataset = []
+    for tract_metric in tract_fullname_dict.keys():
+        df = pd.read_csv(prefix + tract_fullname_dict[tract_metric], sep=" ", 
+                 header=None, names=['sub_id', 'segments', 'metrics', 'values'])
+        
+        df_selected = df[df['sub_id'].isin(common_id)]
+        tract_values = np.array(df_selected['values']).reshape(-1, 29)
+        full_dataset.append(tract_values)
+    
+    full_dataset = np.stack(full_dataset, axis=0)
+    full_dataset = np.transpose(full_dataset, (1,2,0))
+    np.save('tract_value_compact.npy', full_dataset)
 
 
 if __name__ == '__main__':
     # WAND data preparation
     # prep_wand_age(file_dir='~/wand_age.csv')
-    args = build_parser_wand_prep().parse_args()
-    prep_all_wand_images(args=args)
+    # args = build_parser_wand_prep().parse_args()
+    # prep_all_wand_images(args=args)
+    prep_tract_metrics()

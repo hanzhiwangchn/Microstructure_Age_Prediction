@@ -15,14 +15,13 @@ results_folder = 'model_ckpt_results'
 os.makedirs(results_folder, exist_ok=True)
 
 
-def build_parser():
+def build_parser_image_baseline_training():
     """
-    build parser for Microstructure Age Prediction.
-    A template for running the code through the terminal is listed below:
+    build parser for training baseline models using microstructure images.
     For the skewed loss, python main.py --skewed-loss --compact-dynamic --comment run0
     For two-stage correction, python main.py --two-stage-correction --comment run1
     """
-    parser = argparse.ArgumentParser(description='Microstructure Age Prediction')
+    parser = argparse.ArgumentParser(description='Baseline model training using images')
     parser.add_argument('--model', type=str, default='densenet', choices=['densenet', 'resnet'],
                         help='model configurations')
     parser.add_argument('--loss-type', type=str, default='L1', choices=['L1', 'L2'],
@@ -86,15 +85,13 @@ def build_parser():
     # stacking
     parser.add_argument('--run-stacking', action='store_true', default=True,
                         help='run stacking')
-    parser.add_argument('--stacking-method', type=str, default='model-wise', choices=['model-wise', 'data-wise'],
-                        help='specify which stacking data to use')
     return parser
 
 
-def main():
-    """overall workflow of Microstructure Age Prediction"""
+def baseline_model_training_images():
+    """overall workflow of baseline model training using microstructure images"""
     # build parser
-    args = build_parser().parse_args()
+    args = build_parser_image_baseline_training().parse_args()
     
     # update args based on different datasets
     args = update_args(args=args)
@@ -136,4 +133,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    baseline_model_training_images()

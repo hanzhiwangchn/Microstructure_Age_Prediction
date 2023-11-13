@@ -1,6 +1,11 @@
 import torch
 import numpy as np
 
+from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
+
+from sklearn.metrics import mean_absolute_error
+
 
 def prepare_stacking_training_data(args, model, train_loader, val_loader, test_loader):
     """
@@ -73,3 +78,24 @@ def prepare_stacking_training_data(args, model, train_loader, val_loader, test_l
     np.save(f'{args.image_modality}_val_label.npy', val_labels.cpu().numpy())
     np.save(f'{args.image_modality}_test_feature.npy', test_preds.cpu().numpy())
     np.save(f'{args.image_modality}_test_label.npy', test_labels.cpu().numpy())
+
+
+def stacking_training():
+    x_train = np.load('stack_data/ICVF_NODDI_train_feature.npy')
+    y_train = np.load('stack_data/ICVF_NODDI_train_label.npy')
+    x_val = np.load('stack_data/ICVF_NODDI_val_feature.npy')
+    y_val = np.load('stack_data/ICVF_NODDI_val_label.npy')
+    x_test = np.load('stack_data/ICVF_NODDI_test_feature.npy')
+    y_test = np.load('stack_data/ICVF_NODDI_test_label.npy')
+
+    lr = LinearRegression()
+    svr = SVR()
+    lr.fit(x_train, y_train)
+    svr.fit(x_train, y_train)
+    y_pred = lr.predict(x_test)
+    y_pred_2 = svr.predict(x_test)
+    print(mean_absolute_error(y_true=y_test, y_pred=y_pred))
+    print(mean_absolute_error(y_true=y_test, y_pred=y_pred_2))
+
+if __name__ == '__main__':
+    stacking_training()
