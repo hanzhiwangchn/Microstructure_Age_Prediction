@@ -1,6 +1,7 @@
 import logging, os
 
 from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 import pandas as pd
 from torchvision import transforms
@@ -109,3 +110,34 @@ def build_dataset_wand(args):
     del test_images, test_labels
 
     return dataset_train, dataset_val, dataset_test, lim, input_shape, median_age
+
+
+def load_tract_data(args):
+    """load and standardize data for each diffusion measures"""
+    features = np.load(os.path.join(args.data_dir, 'tract_value_compact.npy'))
+    labels = np.load(os.path.join(args.data_dir, 'tract_age_compact.npy'))
+
+    # Stratified train test Split based on age
+    df = pd.DataFrame()
+    df['Age'] = labels
+    df['Age_categorical'] = pd.qcut(df['Age'], 10, labels=[i for i in range(10)])
+
+    split = StratifiedShuffleSplit(test_size=args.test_size, random_state=args.random_state)
+    train_index, test_index = next(split.split(df, df['Age_categorical']))
+    assert sorted(train_index.tolist() + test_index.tolist()) == list(range(len(df)))
+
+    # train test split
+    train_features = features[train_index].astype(np.float32)
+    test_features = features[test_index].astype(np.float32)
+    train_labels = np.expand_dims(df.loc[train_index, 'Age'].values, axis=1).astype(np.float32)
+    test_labels = np.expand_dims(df.loc[test_index, 'Age'].values, axis=1).astype(np.float32)
+    logger.info(f"Training feature shape: {train_features.shape}, test feature shape: {test_features.shape}. "
+                f"Training label shape: {train_labels.shape}, test label shape: {test_labels.shape}")
+
+    # z-normalization based on diffusion measures
+    scaler = StandardScaler()
+    # TODO: add a check later to make sure such reshape does not change the original shape: Colab toy code
+    train_features = scaler.fit_transform(train_features.reshape(-1, train_features.shape[-1])).reshape(train_features.shape)
+    test_features = scaler.transform(test_features.reshape(-1, test_features.shape[-1])).reshape(test_features.shape)
+
+    return train_features, test_features, train_labels, test_labels
