@@ -4,7 +4,7 @@ import warnings
 warnings.warn = warn
 
 import argparse, logging, os
-from tract_training.tract_training_utils import *
+from utils.tract_utils.tract_training_utils import *
 
 # create logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
