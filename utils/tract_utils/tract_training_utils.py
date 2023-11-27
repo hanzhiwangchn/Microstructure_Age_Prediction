@@ -1,11 +1,9 @@
-import logging, json, os
-from collections import Counter
+import logging, json, os, joblib
 
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
-import joblib
 
 from sklearn.model_selection import StratifiedShuffleSplit, RandomizedSearchCV
 from sklearn.preprocessing import RobustScaler
@@ -15,13 +13,21 @@ from sklearn.decomposition import PCA, KernelPCA
 import umap
 from sklearn.metrics import r2_score , mean_squared_error
 
+import smogn
 from sklearn.ensemble import RandomForestRegressor, StackingRegressor
 from xgboost import XGBRegressor
 from sklearn.svm import SVR
-from lightgbm import LGBMRegressor
 
-
+results_folder = 'model_ckpt_results/tracts'
 logger = logging.getLogger(__name__)
+
+
+def update_args(args):
+    """update arguments"""
+    args.keyword_dict = build_keyword_dict()
+    args.result_dir = results_folder
+
+    return args
 
 
 def build_keyword_dict():
@@ -40,33 +46,63 @@ def build_keyword_dict():
 
 
 def load_tract_data(args):
-    """load tract data and do a train-test-split"""
-    features = np.load(os.path.join(args.data_dir, 'tract_value_compact.npy'))
-    labels = np.load(os.path.join(args.data_dir, 'tract_age_compact.npy'))
+    """load tract data and do a train-val-test-split"""
+    features = np.load(os.path.join(args.tract_data_dir, 'tract_value_compact.npy'))
+    labels = np.load(os.path.join(args.tract_data_dir, 'tract_age_compact.npy'))
 
-    # Stratified train test Split based on age
+    # Stratified train val test Split based on age
     df = pd.DataFrame(data=labels, columns=['Age'])
     df['Age_categorical'] = pd.qcut(df['Age'], 10, labels=[i for i in range(10)])
 
+    # train-val & test split
     split = StratifiedShuffleSplit(test_size=args.test_size, random_state=args.random_state)
-    train_index, test_index = next(split.split(df, df['Age_categorical']))
-    assert sorted(train_index.tolist() + test_index.tolist()) == list(range(len(df)))
+    train_val_index, test_index = next(split.split(df, df['Age_categorical']))
+    stratified_train_val_set = df.loc[train_val_index]
+    assert sorted(train_val_index.tolist() + test_index.tolist()) == list(range(len(df)))
 
-    # train test split
-    train_features = features[train_index].astype(np.float32)
-    test_features = features[test_index].astype(np.float32)
-    train_labels = np.expand_dims(df.loc[train_index, 'Age'].values, axis=1).astype(np.float32)
-    test_labels = np.expand_dims(df.loc[test_index, 'Age'].values, axis=1).astype(np.float32)
-    logger.info(f"Training feature shape: {train_features.shape}, test feature shape: {test_features.shape}. "
-                f"Training label shape: {train_labels.shape}, test label shape: {test_labels.shape}")
+    # train & val split
+    split2 = StratifiedShuffleSplit(test_size=args.val_size, random_state=args.random_state)
+    train_index, val_index = next(split2.split(stratified_train_val_set, stratified_train_val_set['Age_categorical']))
+
+    # NOTE: StratifiedShuffleSplit returns RangeIndex instead of the Original Index of the new DataFrame
+    assert sorted(train_index.tolist() + val_index.tolist()) == list(range(len(stratified_train_val_set.index)))
+    assert sorted(train_index.tolist() + val_index.tolist()) != sorted(list(stratified_train_val_set.index))
     
+    # get the correct index of original DataFrame for train/val set
+    train_index = train_val_index[train_index]
+    val_index = train_val_index[val_index]
+
+    # ensure there is no duplicated index
+    assert sorted(train_index.tolist() + val_index.tolist() + test_index.tolist()) == list(range(len(df)))
+
+    # split data based on index
+    train_features = features[train_index].astype(np.float32)
+    val_features = features[val_index].astype(np.float32)
+    test_features = features[test_index].astype(np.float32)
+    train_labels = df.loc[train_index, 'Age'].values.astype(np.float32)
+    val_labels = df.loc[val_index, 'Age'].values.astype(np.float32)
+    test_labels = df.loc[test_index, 'Age'].values.astype(np.float32)
+    logger.info(f"Training feature shape: {train_features.shape}, val feature shape: {val_features.shape}, test feature shape: {test_features.shape}."
+                f"Training label shape: {train_labels.shape}, val label shape: {val_labels.shape}, test label shape: {test_labels.shape}")
+    
+    # visualize train-val-test distributions
+    plt.figure()
+    sns.kdeplot(data=train_labels, label = "Train")
+    sns.kdeplot(data=val_labels, label = "Val")
+    sns.kdeplot(data=test_labels, label = "Test")
+    plt.legend()
+    plt.savefig(f'{args.result_dir}/train_val_test_dist.png')
+    plt.close()
+
     # remove training subjects whose age is larger than 60
     if args.outlier_removal:
-        remaining_idx = np.where(train_labels.flatten() < 60)
+        remaining_idx = np.where(train_labels < 60)
         train_features = train_features[remaining_idx]
         train_labels = train_labels[remaining_idx]
+        logger.info('Perform outlier removal on Age')
+        logger.info(f"Training feature shape: {train_features.shape}, training label shape: {train_labels.shape}.")
     
-    return train_features, test_features, train_labels, test_labels
+    return train_features, val_features, test_features, train_labels, val_labels, test_labels
 
 
 def perform_exploratory_data_analysis(args, train_features, train_labels):
@@ -108,47 +144,58 @@ def perform_exploratory_data_analysis(args, train_features, train_labels):
     plt.close()
 
 
-def scale_data(train_features, test_features):
+def scale_data(train_features, val_features, test_features):
     """Scale features using statistics that are robust to outliers based on diffusion measures"""
     scaler = RobustScaler()
     train_features = scaler.fit_transform(train_features.reshape(-1, train_features.shape[-1])).reshape(train_features.shape)
+    val_features = scaler.transform(val_features.reshape(-1, val_features.shape[-1])).reshape(val_features.shape)
     test_features = scaler.transform(test_features.reshape(-1, test_features.shape[-1])).reshape(test_features.shape)
 
-    return train_features, test_features
+    return train_features, val_features, test_features
 
 
-def apply_decomposition(args, train_features, test_features):
+def apply_decomposition(args, train_features, val_features, test_features):
     """
     perform decomposition based on a certain axe or both axes.
-    Decomposition methods: {PCA, UMAP, Kernel_PCA}
-    Output shape: [num_subject, n_component_tracts, n_component_d_measures]
+    Decomposition methods: {PCA, UMAP, Kernel_PCA}. 
+    Currently, we only use PCA.
+    Output shape: [num_subject, num_tracts or num_d_measures, n_principle_component]
+    We perform decomposition individually for each tract or each d_measure by default.
     When decomposing d_measures, we will train model on each tract and select top-performing models.
     When decomposing tracts, we will train model on each d_measure and select top-performing models.
     """
     # Input shape: [subject, tracts, d_measures]
     num_train_sub, num_tract_region, num_d_measures  = train_features.shape
+    num_val_sub, _, _ = val_features.shape
     num_test_sub, _, _  = test_features.shape
 
-    # d_measures decomposition
+    # Decomposition on d_measures
     if args.decomposition_feature_names == 'd_measures':
-        # reshape to (subject * tracts, d-measures), since decomposition is based on d-measures.
-        train_features = train_features.reshape(-1, train_features.shape[-1])
-        test_features = test_features.reshape(-1, test_features.shape[-1])
-
         # PCA
         if args.decomposition_method == 'pca':
-            pca = PCA(n_components=args.pca_component)
-            pca.fit(train_features)
-            train_features = pca.transform(train_features)
-            test_features = pca.transform(test_features)
-            logger.info(pca.explained_variance_ratio_)
-            logger.info(pca.singular_values_)
-            logger.info(pca.components_)
+            train_features_list = []
+            val_features_list = []
+            test_features_list = []
+            # iterate each tract
+            for idx in range(train_features.shape[1]):
+                train_features_ROI = train_features[:, idx, :]
+                val_features_ROI = val_features[:, idx, :]
+                test_features_ROI = test_features[:, idx, :]
 
-            # reshape back to original shape (subject, tracts, n_component)
-            train_features = train_features.reshape(num_train_sub, num_tract_region, args.pca_component)
-            test_features = test_features.reshape(num_test_sub, num_tract_region, args.pca_component)
+                pca = PCA(n_components=args.pca_component)
+                pca.fit(train_features_ROI)
+                train_features_ROI = pca.transform(train_features_ROI)
+                val_features_ROI = pca.transform(val_features_ROI)
+                test_features_ROI = pca.transform(test_features_ROI)
 
+                train_features_list.append(train_features_ROI)
+                val_features_list.append(val_features_ROI)
+                test_features_list.append(test_features_ROI)
+            
+            train_features = np.stack(train_features_list, axis=1)
+            val_features = np.stack(val_features_list, axis=1)
+            test_features = np.stack(test_features_list, axis=1)
+            
         # Kernel PCA
         elif args.decomposition_method == 'kernel_pca':
             kernel_pca = KernelPCA(n_components=args.kernel_pca_component)
@@ -172,29 +219,40 @@ def apply_decomposition(args, train_features, test_features):
             test_features = test_features.reshape(num_test_sub, num_tract_region, args.umap_component)
 
         assert train_features.shape == (num_train_sub, num_tract_region, args.pca_component)
+        assert val_features.shape == (num_val_sub, num_tract_region, args.pca_component)
         assert test_features.shape == (num_test_sub, num_tract_region, args.pca_component)
     
     # tracts decomposition
     elif args.decomposition_feature_names == 'tracts':
-        # reshape to (subject * d-measures, tracts), since decomposition is based on tracts.
+        # reshape to (subject, d-measures, tracts), since decomposition is based on tracts.
         train_features = np.transpose(train_features, (0, 2, 1))
-        train_features = train_features.reshape(-1, train_features.shape[-1])
+        val_features = np.transpose(val_features, (0, 2, 1))
         test_features = np.transpose(test_features, (0, 2, 1))
-        test_features = test_features.reshape(-1, test_features.shape[-1])
 
         # PCA
         if args.decomposition_method == 'pca':
-            pca = PCA(n_components=args.pca_component)
-            pca.fit(train_features)
-            train_features = pca.transform(train_features)
-            test_features = pca.transform(test_features)
-            # logger.info(pca.explained_variance_ratio_)
-            # logger.info(pca.singular_values_)
-            # logger.info(pca.components_)
+            train_features_list = []
+            val_features_list = []
+            test_features_list = []
+            # iterate each d_measure
+            for idx in range(train_features.shape[1]):
+                train_features_ROI = train_features[:, idx, :]
+                val_features_ROI = val_features[:, idx, :]
+                test_features_ROI = test_features[:, idx, :]
 
-            # reshape back to shape (subject, d_measures, n_component)
-            train_features = train_features.reshape(num_train_sub, num_d_measures, args.pca_component)
-            test_features = test_features.reshape(num_test_sub, num_d_measures, args.pca_component)
+                pca = PCA(n_components=args.pca_component)
+                pca.fit(train_features_ROI)
+                train_features_ROI = pca.transform(train_features_ROI)
+                val_features_ROI = pca.transform(val_features_ROI)
+                test_features_ROI = pca.transform(test_features_ROI)
+
+                train_features_list.append(train_features_ROI)
+                val_features_list.append(val_features_ROI)
+                test_features_list.append(test_features_ROI)
+            
+            train_features = np.stack(train_features_list, axis=1)
+            val_features = np.stack(val_features_list, axis=1)
+            test_features = np.stack(test_features_list, axis=1)
 
         # Kernel PCA
         elif args.decomposition_method == 'kernel_pca':
@@ -219,53 +277,80 @@ def apply_decomposition(args, train_features, test_features):
             test_features = test_features.reshape(num_test_sub, num_d_measures, args.umap_component)
 
         assert train_features.shape == (num_train_sub, num_d_measures, args.pca_component)
+        assert val_features.shape == (num_val_sub, num_d_measures, args.pca_component)
         assert test_features.shape == (num_test_sub, num_d_measures, args.pca_component)
 
     # d_measures and tracts decomposition
-    if False:
-        train_features = np.transpose(train_features, (0, 2, 1)).reshape(-1, num_tract_region)
-        test_features = np.transpose(test_features, (0, 2, 1)).reshape(-1, num_tract_region)
+    elif args.decomposition_feature_names == 'both':
+        # since we observe that different tracts give different performance, 
+        # we perform pca firstly by tract then by d_measures.
+        train_features = np.transpose(train_features, (0, 2, 1))
+        val_features = np.transpose(val_features, (0, 2, 1))
+        test_features = np.transpose(test_features, (0, 2, 1))
 
+        # PCA
         if args.decomposition_method == 'pca':
-            # PCA
-            pca = PCA(n_components=args.pca_component_1)
-            pca.fit(train_features)
-            train_features = pca.transform(train_features)
-            test_features = pca.transform(test_features)
-            logger.info(pca.explained_variance_ratio_)
-            logger.info(pca.singular_values_)
-            logger.info(pca.components_)
+            train_features_list = []
+            val_features_list = []
+            test_features_list = []
+            # iterate each d_measure
+            for idx in range(train_features.shape[1]):
+                train_features_ROI = train_features[:, idx, :]
+                val_features_ROI = val_features[:, idx, :]
+                test_features_ROI = test_features[:, idx, :]
 
-            # reshape back to original shape (subject, regions, n_component)
-            train_features = train_features.reshape(num_train_sub, args.pca_component_1, args.pca_component)
-            test_features = test_features.reshape(num_test_sub, args.pca_component_1, args.pca_component)
+                pca = PCA(n_components=args.pca_component)
+                pca.fit(train_features_ROI)
+                train_features_ROI = pca.transform(train_features_ROI)
+                val_features_ROI = pca.transform(val_features_ROI)
+                test_features_ROI = pca.transform(test_features_ROI)
 
-        elif args.decomposition_method == 'kernel_pca':
-            # PCA
-            pca = KernelPCA(n_components=args.kernel_pca_component)
-            pca.fit(train_features)
-            train_features = pca.transform(train_features)
-            test_features = pca.transform(test_features)
+                train_features_list.append(train_features_ROI)
+                val_features_list.append(val_features_ROI)
+                test_features_list.append(test_features_ROI)
+            
+            train_features = np.stack(train_features_list, axis=1)
+            val_features = np.stack(val_features_list, axis=1)
+            test_features = np.stack(test_features_list, axis=1)
 
-            # reshape back to original shape (subject, regions, n_component)
-            train_features = train_features.reshape(num_train_sub, num_tract_region, args.kernel_pca_component)
-            test_features = test_features.reshape(num_test_sub, num_tract_region, args.kernel_pca_component)
+        # reshape back to (num_sub, n_pc_tract, num_d_measures)
+        train_features = np.transpose(train_features, (0, 2, 1))
+        val_features = np.transpose(val_features, (0, 2, 1))
+        test_features = np.transpose(test_features, (0, 2, 1))
+        assert train_features.shape == (num_train_sub, args.pca_component, num_d_measures)
+        assert val_features.shape == (num_val_sub, args.pca_component, num_d_measures)
+        assert test_features.shape == (num_test_sub, args.pca_component, num_d_measures)
+        
+        # second pca
+        if args.decomposition_method == 'pca':
+            train_features_list = []
+            val_features_list = []
+            test_features_list = []
+            # iterate each d_measure
+            for idx in range(train_features.shape[1]):
+                train_features_ROI = train_features[:, idx, :]
+                val_features_ROI = val_features[:, idx, :]
+                test_features_ROI = test_features[:, idx, :]
 
-        elif args.decomposition_method == 'umap':
-            # UMAP
-            umap_reducer = umap.UMAP(n_components=args.umap_component)
-            trans = umap_reducer.fit(train_features)
-            train_features = trans.transform(train_features)
-            test_features = trans.transform(test_features)
+                pca = PCA(n_components=args.pca_component)
+                pca.fit(train_features_ROI)
+                train_features_ROI = pca.transform(train_features_ROI)
+                val_features_ROI = pca.transform(val_features_ROI)
+                test_features_ROI = pca.transform(test_features_ROI)
 
-            # reshape back to original shape (subject, regions, n_component)
-            train_features = train_features.reshape(num_train_sub, num_tract_region, args.umap_component)
-            test_features = test_features.reshape(num_test_sub, num_tract_region, args.umap_component)
+                train_features_list.append(train_features_ROI)
+                val_features_list.append(val_features_ROI)
+                test_features_list.append(test_features_ROI)
+            
+            train_features = np.stack(train_features_list, axis=1)
+            val_features = np.stack(val_features_list, axis=1)
+            test_features = np.stack(test_features_list, axis=1)
 
-            pass
+        assert train_features.shape == (num_train_sub, args.pca_component, args.pca_component)
+        assert val_features.shape == (num_val_sub, args.pca_component, args.pca_component)
+        assert test_features.shape == (num_test_sub, args.pca_component, args.pca_component)
 
-
-    return train_features, test_features
+    return train_features, val_features, test_features
 
 
 def paper_plots_derek(args, train_features, train_labels):
@@ -291,34 +376,84 @@ def paper_plots_derek(args, train_features, train_labels):
         plt.savefig(f"derek_paper_plots_dir/{args.keyword_dict['ROI'][tract_idx]}.jpg")
 
 
-def training_tractwise_baseline_model(args, train_features, test_features, train_labels, test_labels):
+def apply_smote(args, train_features, train_labels, idx):
+    """apply smogn to create synthetic examples"""
+    df = pd.DataFrame(data=train_features, columns=[f'feature_{i}' for i in range(train_features.shape[-1])])
+    df['label'] = train_labels
+
+    # SMOGN
+    n_tries = 0
+    done = False
+    while not done:
+        try:
+            data_smogn = smogn.smoter(
+                data = df, y = 'label', k = 5, samp_method = args.smote_method,
+                rel_thres = args.smote_threshold, rel_method = 'manual',
+                rel_ctrl_pts_rg=[[60, 1, 0], [50, 1, 0], [40, 0, 0], [30, 0, 0], [20, 1, 0]]
+                )
+            done = True
+
+        except ValueError:
+            if n_tries < 20:
+                n_tries += 1
+            else:
+                raise
+
+    # visualize modified distribution
+    if args.decomposition_feature_names == 'd_measures':
+        name = args.keyword_dict['ROI'][idx]
+    elif args.decomposition_feature_names == 'both':
+        name = f'Tract PC {idx}'
+    elif args.decomposition_feature_names == 'tracts':
+        name = args.keyword_dict['d_measures'][idx]
+    plt.figure()
+    sns.kdeplot(df['label'], label = "Original")
+    sns.kdeplot(data_smogn['label'], label = "Modified")
+    plt.legend()
+    plt.savefig(f"{args.result_dir}/smote_comparison/{name}_dist.png")
+    plt.close()
+
+    return data_smogn.iloc[:, :-1].values, data_smogn.iloc[:, -1].values
+
+
+def training_baseline_model(args, train_features, val_features, train_labels, val_labels):
     """
-    For each tract region, build a baseline model using RandomizedSearch. 
+    Build a baseline tract-wise or measure-wise model using RandomizedSearch
     After the baseline training, averaging top-performing models.
-    Train_features shape: (subject, tracts or d_measures, *)
+    Train_features shape: (subject, tracts or d_measures, n_PCs)
+    
+    When decomposition method is 'd_measures' and 'both', tract-wise baseline is trained.
+    When decomposition method is 'tracts', d_measure-wise baseline is trained.
     """
     res_dict = dict()
     for idx in range(train_features.shape[1]):
-        if args.decomposition_feature_names in ['d_measures', 'both']:
+        if args.decomposition_feature_names == 'd_measures':
             logger.info(f"Current tract region: {args.keyword_dict['ROI'][idx]}")
             res_dict[f"{args.keyword_dict['ROI'][idx]}"] = dict()
+        elif args.decomposition_feature_names == 'both':
+            logger.info(f"Current tract region PC: {idx}")
+            res_dict[f"Tract PC {idx}"] = dict()
         elif args.decomposition_feature_names == 'tracts':
             logger.info(f"Current d_measure: {args.keyword_dict['d_measures'][idx]}")
             res_dict[f"{args.keyword_dict['d_measures'][idx]}"] = dict()
 
         # input shape (subject, num_features) Pc1, Pc2 ...
         train_features_ROI = train_features[:, idx, :]
-        test_features_ROI = test_features[:, idx, :]
+        val_features_ROI = val_features[:, idx, :]
 
+        # apply SMOTE 
+        if args.smote:
+            train_features_ROI, train_labels_ROI = apply_smote(args=args, train_features=train_features_ROI, 
+                                                               train_labels=train_labels, idx=idx)
+            
         # models
         svr = SVR()
         # xgb = XGBRegressor()
         # rfr = RandomForestRegressor()
-        estimators = [('svr', SVR())]
-        stack_reg = StackingRegressor(estimators=estimators,
-                                      final_estimator=RandomForestRegressor())
-        reg_configs = list(zip((svr,), 
-                               ('svr',)))
+        # estimators = [('svr', SVR())]
+        # stack_reg = StackingRegressor(estimators=estimators,
+        #                               final_estimator=RandomForestRegressor())
+        reg_configs = list(zip((svr,), ('svr',)))
         
         scoring = "neg_root_mean_squared_error"
         # params dict
@@ -347,71 +482,88 @@ def training_tractwise_baseline_model(args, train_features, test_features, train
         for reg, reg_name in reg_configs:
             grid = RandomizedSearchCV(estimator=reg, param_distributions=params[reg_name], cv=10, 
                                       scoring=scoring, refit=True, n_iter=300, n_jobs=-1)
-            grid.fit(train_features_ROI, train_labels.ravel())
+            grid.fit(train_features_ROI, train_labels_ROI)
 
             # test best estimator
             logger.info(f'Mean CV score for {reg_name}: {-grid.best_score_}')
-            test_rmse = mean_squared_error(test_labels, grid.best_estimator_.predict(test_features_ROI), squared=False)
-            logger.info(f"Test set RMSE for {reg_name}: {test_rmse}")
+            val_rmse = mean_squared_error(val_labels, grid.best_estimator_.predict(val_features_ROI), squared=False)
+            logger.info(f"Validation set RMSE for {reg_name}: {val_rmse}")
 
-            if args.decomposition_feature_names in ['d_measures', 'both']:
-                res_dict[f"{args.keyword_dict['ROI'][idx]}"][reg_name] = str(test_rmse)
+            if args.decomposition_feature_names == 'd_measures':
+                res_dict[f"{args.keyword_dict['ROI'][idx]}"][reg_name] = str(val_rmse)
+            elif args.decomposition_feature_names == 'both':
+                res_dict[f"Tract PC {idx}"][reg_name] = str(val_rmse)
             elif args.decomposition_feature_names == 'tracts':
-                res_dict[f"{args.keyword_dict['d_measures'][idx]}"][reg_name] = str(test_rmse)
+                res_dict[f"{args.keyword_dict['d_measures'][idx]}"][reg_name] = str(val_rmse)
 
             # save the trained model
-            model_dir = f'tract_training/baseline_models/{args.decomposition_feature_names}_{args.random_state}'
-            os.makedirs(model_dir, exist_ok=True)
-            if args.decomposition_feature_names in ['d_measures', 'both']:
+            baseline_model_dir = f'{args.result_dir}/baseline_models/{args.decomposition_feature_names}_{args.random_state}'
+            os.makedirs(baseline_model_dir, exist_ok=True)
+            if args.decomposition_feature_names == 'd_measures':
                 trained_model_name = f"trained_{reg_name}_{args.keyword_dict['ROI'][idx]}.sav"
+            elif args.decomposition_feature_names == 'both':
+                trained_model_name = f"trained_{reg_name}_Tract_PC_{idx}.sav"
             elif args.decomposition_feature_names == 'tracts':
                 trained_model_name = f"trained_{reg_name}_{args.keyword_dict['d_measures'][idx]}.sav"
-            joblib.dump(grid.best_estimator_, os.path.join(model_dir, trained_model_name))
-
-    return res_dict
-
-
-def load_trained_model_ensemble(args, train_features, test_features, test_labels, res_dict):
-    res = []
-    model_dir = f'tract_training/baseline_models/{args.decomposition_feature_names}_{args.random_state}'
-    # load each trained model again and give predictions on test set again.
-    for idx in range(train_features.shape[1]):
-        test_features_ROI = test_features[:, idx, :] 
-        if args.decomposition_feature_names in ['d_measures', 'both']:
-            name = args.keyword_dict['ROI'][idx]
-        elif args.decomposition_feature_names == 'tracts':
-            name = args.keyword_dict['d_measures'][idx]
-        # iterate all model names
-        for trained_model_name in os.listdir(model_dir):
-            if name in trained_model_name:                
-                loaded_model = joblib.load(os.path.join(model_dir, trained_model_name))
-                preds = loaded_model.predict(test_features_ROI)
-                res.append(preds)
-
-    # count the best performing regions
-    best_performing_tracts = []
-    # select idx with best test loss
-    smallest_idx = np.argpartition(np.array([mean_squared_error(test_labels, i, squared=False) for i in res]), 3)[:3]
+            joblib.dump(grid.best_estimator_, os.path.join(baseline_model_dir, trained_model_name))
     
-    best_performing_tracts.extend(args.keyword_dict['ROI'][smallest_idx])
-    logger.info(f'Best performing tracts are {Counter(best_performing_tracts)}')
-    
-    # ensemble model performance
-    average_res = np.stack(res, axis=-1).mean(axis=-1)
-    top3_res = np.stack(res, axis=-1)[:, smallest_idx].mean(axis=-1)
-    res_dict['averaged_all'] = str(mean_squared_error(test_labels, average_res, squared=False))
-    res_dict['averaged_top3'] = str(mean_squared_error(test_labels, top3_res, squared=False))
-    with open(os.path.join(model_dir, 'baseline_model_performance.json'), 'w') as f:
+    with open(os.path.join(baseline_model_dir, 'baseline_model_performance.json'), 'w') as f:
         json.dump(res_dict, f)
 
-    # add scatter plot here
-    # plt.subplots(figsize=(20, 20))
-    # plt.plot([10, 60], [10, 60])
-    # plt.scatter(test_labels, top3_res)
-    # plt.title(f"Prediction scatter plot", fontsize=40)
-    # plt.xlabel('Age', fontsize=30)
-    # plt.ylabel('Predictions',fontsize=30)
-    # plt.savefig(f"tract_training/tract_eda/Hist_{args.keyword_dict['d_measures'][d_measure_idx]}.png", bbox_inches='tight')
-    # plt.close()
 
+def load_trained_model_ensemble(args, train_features, val_features, test_features, val_labels, test_labels):
+    """load trained models and create ensemble models"""
+    val_res = []
+    test_res = []
+    baseline_model_dir = f'{args.result_dir}/baseline_models/{args.decomposition_feature_names}_{args.random_state}'
+    
+    # load each trained model again and give predictions on test set again.
+    for idx in range(train_features.shape[1]):
+        val_features_ROI = val_features[:, idx, :] 
+        test_features_ROI = test_features[:, idx, :] 
+        if args.decomposition_feature_names == 'd_measures':
+            name = args.keyword_dict['ROI'][idx]
+        elif args.decomposition_feature_names == 'both':
+            name = f"Tract_PC_{idx}"
+        elif args.decomposition_feature_names == 'tracts':
+            name = args.keyword_dict['d_measures'][idx]
+        
+        # iterate all model names
+        for trained_model_name in os.listdir(baseline_model_dir):
+            if name in trained_model_name:                
+                loaded_model = joblib.load(os.path.join(baseline_model_dir, trained_model_name))
+                val_preds = loaded_model.predict(val_features_ROI)
+                test_preds = loaded_model.predict(test_features_ROI)
+                val_res.append(val_preds)
+                test_res.append(test_preds)
 
+    # select idx with best test loss based on val results
+    smallest_idx = np.argpartition(np.array([mean_squared_error(val_labels, i, squared=False) for i in val_res]), 3)[:3]
+    
+    # ensemble model performance
+    average_res_val = np.stack(val_res, axis=-1).mean(axis=-1)
+    top3_res_val = np.stack(val_res, axis=-1)[:, smallest_idx].mean(axis=-1)
+    average_res_test = np.stack(test_res, axis=-1).mean(axis=-1)
+    top3_res_test = np.stack(test_res, axis=-1)[:, smallest_idx].mean(axis=-1)
+
+    # load previous result json and add ensemble performance
+    with open(os.path.join(baseline_model_dir, 'baseline_model_performance.json'), 'r+') as f:
+        res_dict = json.load(f)
+        res_dict['val_averaged_all'] = str(mean_squared_error(val_labels, average_res_val, squared=False))
+        res_dict['val_averaged_top3'] = str(mean_squared_error(val_labels, top3_res_val, squared=False))
+        res_dict['test_averaged_all'] = str(mean_squared_error(test_labels, average_res_test, squared=False))
+        res_dict['test_averaged_top3'] = str(mean_squared_error(test_labels, top3_res_test, squared=False))
+    with open(os.path.join(baseline_model_dir, 'baseline_model_performance.json'), 'w') as f:
+        json.dump(res_dict, f)
+
+    # add scatter plot for test set
+    if args.scatter_prediction_plot:
+        fig, ax = plt.subplots(figsize=(20, 20))
+        ax.plot([10, 60], [10, 60])
+        ax.scatter(test_labels, top3_res_test, s=200.0, c='r')
+        ax.scatter(val_labels, top3_res_val, s=200.0, c='g')
+        ax.set_title(f"Prediction scatter plot", fontsize=40)
+        ax.set_xlabel('Age', fontsize=40)
+        ax.set_ylabel('Predictions',fontsize=40)
+        ax.tick_params(axis='both', which='major', labelsize=25)
+        plt.savefig(os.path.join(baseline_model_dir, 'scatter_test_performance.png'), bbox_inches='tight')

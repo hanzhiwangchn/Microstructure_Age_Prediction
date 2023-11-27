@@ -1,11 +1,11 @@
 import argparse, logging, os
 
-from utils.common_utils import RunManager, update_args
-from utils.build_dataset import build_dataset
-from utils.build_model import build_model, build_model_stacking
-from utils.build_loss_function import build_loss_function
-from utils.build_training_loop import build_loader, build_optimizer, train_val_test
-from utils.build_model_stacking import prepare_stacking_training_data
+from utils.image_utils.common_utils import RunManager, update_args
+from utils.image_utils.build_dataset import build_dataset
+from utils.image_utils.build_model import build_model, build_model_stacking
+from utils.image_utils.build_loss_function import build_loss_function
+from utils.image_utils.build_training_loop import build_loader, build_optimizer, train_val_test
+from utils.image_utils.build_model_stacking import prepare_stacking_training_data
 
 # create logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')

@@ -2,6 +2,8 @@ import logging, argparse
 from utils.wand_dataset_utils.wand_prep import prep_wand_age, prep_all_wand_images, \
     prep_tract_data
 
+"""This script is used to prepare the dataset for training"""
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
