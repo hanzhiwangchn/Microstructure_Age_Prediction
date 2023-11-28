@@ -20,10 +20,10 @@ def build_parser_tract_training():
     parser.add_argument('--tract-data-dir', type=str, default='tract_data', help='tract data dirs')
     parser.add_argument('--val-size', type=float, default=0.1, help='test set size')
     parser.add_argument('--test-size', type=float, default=0.1, help='test set size')
-    parser.add_argument('--random-state', type=int, default=1, help='random state')
+    parser.add_argument('--random-state', type=int, default=100, help='random state')
     # Decomposition parameters
     parser.add_argument('--decomposition', action='store_true', default=True)
-    parser.add_argument('--decomposition-feature-names', type=str, default='both', 
+    parser.add_argument('--decomposition-feature-names', type=str, default='d_measures', 
                         choices=['d_measures', 'tracts', 'both'], 
                         help='select on which axis to perform decomposition')
     parser.add_argument('--decomposition-method', type=str, default='pca', choices=['pca', 'umap', 'kernel_pca'])
@@ -85,8 +85,7 @@ def tract_training_main():
     # When decomposition method is 'd_measures' and 'both', tract-wise baseline is trained.
     # When decomposition method is 'tracts', d_measure-wise baseline is trained.
     if args.baseline_model_training:
-        if not args.test_only:
-            training_baseline_model(args, train_features, val_features, train_labels, val_labels)
+        args = training_baseline_model(args, train_features, val_features, train_labels, val_labels)
         load_trained_model_ensemble(args, train_features, val_features, test_features, val_labels, test_labels)
           
 

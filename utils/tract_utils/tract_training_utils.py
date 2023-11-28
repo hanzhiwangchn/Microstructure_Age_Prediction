@@ -448,12 +448,13 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
             
         # models
         svr = SVR()
-        # xgb = XGBRegressor()
-        # rfr = RandomForestRegressor()
+        xgb = XGBRegressor()
+        rfr = RandomForestRegressor()
         # estimators = [('svr', SVR())]
         # stack_reg = StackingRegressor(estimators=estimators,
         #                               final_estimator=RandomForestRegressor())
-        reg_configs = list(zip((svr,), ('svr',)))
+        reg_configs = list(zip((svr, rfr, xgb), ('svr', 'rfr', 'xgb')))
+        args.model_list = []
         
         scoring = "neg_root_mean_squared_error"
         # params dict
@@ -463,14 +464,11 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
                          'C': [i/10.0 for i in range(5, 50, 2)]}
         params['rfr'] = {'n_estimators': range(50, 150, 10), 
                          'max_features': ['sqrt', 'log2', 1.0], 
-                         'max_depth': range(3, 30, 3)}
-        params['xgb'] = {'max_depth':range(3, 15, 2), 
+                         'max_depth': range(2, 20, 2)}
+        params['xgb'] = {'max_depth':range(3, 20, 2), 
                          'min_child_weight':range(1, 9, 2), 
                          'gamma':[i/10.0 for i in range(0, 5)], 
                          'subsample':[i/10.0 for i in range(6, 10)]}
-        params['lgb'] = {'num_leaves':range(3, 10, 2), 
-                         'max_bin':range(20, 200, 20), 
-                         'bagging_fraction':[i/10.0 for i in range(6, 10)]}
         params['stack_reg'] = {'svr__kernel': ['linear', 'poly', 'rbf', 'sigmoid'], 
                                'svr__gamma': ['auto', 'scale'], 
                                'svr__C': [i/10.0 for i in range(5, 50, 2)], 
@@ -480,6 +478,7 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
 
         # fit
         for reg, reg_name in reg_configs:
+            args.model_list.append(reg_name)
             grid = RandomizedSearchCV(estimator=reg, param_distributions=params[reg_name], cv=10, 
                                       scoring=scoring, refit=True, n_iter=300, n_jobs=-1)
             grid.fit(train_features_ROI, train_labels_ROI)
@@ -510,60 +509,86 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
     with open(os.path.join(baseline_model_dir, 'baseline_model_performance.json'), 'w') as f:
         json.dump(res_dict, f)
 
+    args.model_list = list(set(args.model_list))
+    return args
+
 
 def load_trained_model_ensemble(args, train_features, val_features, test_features, val_labels, test_labels):
     """load trained models and create ensemble models"""
-    val_res = []
-    test_res = []
+    val_res_dict = dict()
+    test_res_dict = dict()
     baseline_model_dir = f'{args.result_dir}/baseline_models/{args.decomposition_feature_names}_{args.random_state}'
     
     # load each trained model again and give predictions on test set again.
-    for idx in range(train_features.shape[1]):
-        val_features_ROI = val_features[:, idx, :] 
-        test_features_ROI = test_features[:, idx, :] 
-        if args.decomposition_feature_names == 'd_measures':
-            name = args.keyword_dict['ROI'][idx]
-        elif args.decomposition_feature_names == 'both':
-            name = f"Tract_PC_{idx}"
-        elif args.decomposition_feature_names == 'tracts':
-            name = args.keyword_dict['d_measures'][idx]
+    for reg_name in args.model_list:
+        val_res_dict[reg_name] = []
+        test_res_dict[reg_name] = []
+        for idx in range(train_features.shape[1]):
+            val_features_ROI = val_features[:, idx, :] 
+            test_features_ROI = test_features[:, idx, :] 
+            if args.decomposition_feature_names == 'd_measures':
+                data_name = args.keyword_dict['ROI'][idx]
+            elif args.decomposition_feature_names == 'both':
+                data_name = f"Tract_PC_{idx}"
+            elif args.decomposition_feature_names == 'tracts':
+                data_name = args.keyword_dict['d_measures'][idx]
         
-        # iterate all model names
-        for trained_model_name in os.listdir(baseline_model_dir):
-            if name in trained_model_name:                
-                loaded_model = joblib.load(os.path.join(baseline_model_dir, trained_model_name))
-                val_preds = loaded_model.predict(val_features_ROI)
-                test_preds = loaded_model.predict(test_features_ROI)
-                val_res.append(val_preds)
-                test_res.append(test_preds)
+            # fetch the right model
+            trained_model_name = f'trained_{reg_name}_{data_name}.sav'
+            loaded_model = joblib.load(os.path.join(baseline_model_dir, trained_model_name))
+            val_preds = loaded_model.predict(val_features_ROI)
+            test_preds = loaded_model.predict(test_features_ROI)
+            val_res_dict[reg_name].append(val_preds)
+            test_res_dict[reg_name].append(test_preds)
 
-    # select idx with best test loss based on val results
-    smallest_idx = np.argpartition(np.array([mean_squared_error(val_labels, i, squared=False) for i in val_res]), 3)[:3]
+        # select idx with best test loss based on val results
+        smallest_idx = np.argpartition(np.array([mean_squared_error(val_labels, i, squared=False) for i in val_res_dict[reg_name]]), 3)[:3]
+        
+        # ensemble model performance
+        average_res_val = np.stack(val_res_dict[reg_name], axis=-1).mean(axis=-1)
+        top3_res_val = np.stack(val_res_dict[reg_name], axis=-1)[:, smallest_idx].mean(axis=-1)
+        average_res_test = np.stack(test_res_dict[reg_name], axis=-1).mean(axis=-1)
+        top3_res_test = np.stack(test_res_dict[reg_name], axis=-1)[:, smallest_idx].mean(axis=-1)
+
+        # load previous result json and add ensemble performance
+        with open(os.path.join(baseline_model_dir, 'baseline_model_performance.json'), 'r+') as f:
+            res_dict = json.load(f)
+            res_dict[f'val_averaged_all_{reg_name}'] = str(mean_squared_error(val_labels, average_res_val, squared=False))
+            res_dict[f'val_averaged_top3_{reg_name}'] = str(mean_squared_error(val_labels, top3_res_val, squared=False))
+            res_dict[f'test_averaged_all_{reg_name}'] = str(mean_squared_error(test_labels, average_res_test, squared=False))
+            res_dict[f'test_averaged_top3_{reg_name}'] = str(mean_squared_error(test_labels, top3_res_test, squared=False))
+        with open(os.path.join(baseline_model_dir, 'baseline_model_performance.json'), 'w') as f:
+            json.dump(res_dict, f)
+
+        # add scatter plot for test set
+        if args.scatter_prediction_plot:
+            fig, ax = plt.subplots(figsize=(20, 20))
+            ax.plot([10, 70], [10, 70])
+            ax.scatter(test_labels, top3_res_test, s=200.0, c='r')
+            ax.scatter(val_labels, top3_res_val, s=200.0, c='g')
+            ax.set_title(f"Prediction scatter plot", fontsize=40)
+            ax.set_xlabel('Age', fontsize=40)
+            ax.set_ylabel('Predictions',fontsize=40)
+            ax.tick_params(axis='both', which='major', labelsize=25)
+            plt.savefig(os.path.join(baseline_model_dir, f'scatter_test_performance_{reg_name}.png'), bbox_inches='tight')
+
+    # aggregate all model predictions
+    # average_res_val_all_model_list = []
+    # top3_res_val_all_model_list = []
+    # average_res_test_all_model_list = []
+    # top3_res_test_all_model_list = []
+    # for reg_name in args.model_list:
+    #     average_res_val = np.stack(val_res_dict[reg_name], axis=-1).mean(axis=-1)
+    #     top3_res_val = np.stack(val_res_dict[reg_name], axis=-1)[:, smallest_idx].mean(axis=-1)
+    #     average_res_test = np.stack(test_res_dict[reg_name], axis=-1).mean(axis=-1)
+    #     top3_res_test = np.stack(test_res_dict[reg_name], axis=-1)[:, smallest_idx].mean(axis=-1)
+
+    #     average_res_val_all_model_list.append(average_res_val)
+    #     top3_res_val_all_model_list.append(top3_res_val)
+    #     average_res_test_all_model_list.append(average_res_test)
+    #     top3_res_test_all_model_list.append(top3_res_test)
+
+    # average_res_val_all_model = np.stack(average_res_val_all_model_list, axis=-1).mean(axis=-1)
+    # average_res_test_all_model = np.stack(test_res_dict[reg_name], axis=-1).mean(axis=-1)
+
     
-    # ensemble model performance
-    average_res_val = np.stack(val_res, axis=-1).mean(axis=-1)
-    top3_res_val = np.stack(val_res, axis=-1)[:, smallest_idx].mean(axis=-1)
-    average_res_test = np.stack(test_res, axis=-1).mean(axis=-1)
-    top3_res_test = np.stack(test_res, axis=-1)[:, smallest_idx].mean(axis=-1)
-
-    # load previous result json and add ensemble performance
-    with open(os.path.join(baseline_model_dir, 'baseline_model_performance.json'), 'r+') as f:
-        res_dict = json.load(f)
-        res_dict['val_averaged_all'] = str(mean_squared_error(val_labels, average_res_val, squared=False))
-        res_dict['val_averaged_top3'] = str(mean_squared_error(val_labels, top3_res_val, squared=False))
-        res_dict['test_averaged_all'] = str(mean_squared_error(test_labels, average_res_test, squared=False))
-        res_dict['test_averaged_top3'] = str(mean_squared_error(test_labels, top3_res_test, squared=False))
-    with open(os.path.join(baseline_model_dir, 'baseline_model_performance.json'), 'w') as f:
-        json.dump(res_dict, f)
-
-    # add scatter plot for test set
-    if args.scatter_prediction_plot:
-        fig, ax = plt.subplots(figsize=(20, 20))
-        ax.plot([10, 60], [10, 60])
-        ax.scatter(test_labels, top3_res_test, s=200.0, c='r')
-        ax.scatter(val_labels, top3_res_val, s=200.0, c='g')
-        ax.set_title(f"Prediction scatter plot", fontsize=40)
-        ax.set_xlabel('Age', fontsize=40)
-        ax.set_ylabel('Predictions',fontsize=40)
-        ax.tick_params(axis='both', which='major', labelsize=25)
-        plt.savefig(os.path.join(baseline_model_dir, 'scatter_test_performance.png'), bbox_inches='tight')
