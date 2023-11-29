@@ -17,12 +17,12 @@ os.makedirs(results_folder, exist_ok=True)
 def build_parser_tract_training():
     parser = argparse.ArgumentParser(description='build parser for tract metrics training')
     # load and split data parameters
-    parser.add_argument('--tract-data-dir', type=str, default='tract_data', help='tract data dirs')
-    parser.add_argument('--val-size', type=float, default=0.1, help='test set size')
+    parser.add_argument('--tract-data-dir', type=str, default='tract_data/temp', help='tract data dirs')
+    parser.add_argument('--val-size', type=float, default=0.1, help='val set size')
     parser.add_argument('--test-size', type=float, default=0.1, help='test set size')
-    parser.add_argument('--random-state', type=int, default=100, help='random state')
+    parser.add_argument('--random-state', type=int, default=0, help='random state')
     # Decomposition parameters
-    parser.add_argument('--decomposition', action='store_true', default=True)
+    parser.add_argument('--decomposition', action='store_true', default=False)
     parser.add_argument('--decomposition-feature-names', type=str, default='d_measures', 
                         choices=['d_measures', 'tracts', 'both'], 
                         help='select on which axis to perform decomposition')

@@ -31,7 +31,7 @@ def build_parser_wand_tract_prep():
                         help='dir of wand tract data file')
     parser.add_argument('--wand-age-dir', type=str, default='Age_labels/wand_age.json',
                         help='dir of wand age json file')
-    parser.add_argument('--wand-tract-data-dir', type=str, default='tract_data',
+    parser.add_argument('--wand-tract-data-dir', type=str, default='tract_data/temp',
                         help='dir of tract data for training')
     return parser
 

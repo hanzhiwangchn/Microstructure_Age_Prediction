@@ -389,15 +389,22 @@ def apply_smote(args, train_features, train_labels, idx):
             data_smogn = smogn.smoter(
                 data = df, y = 'label', k = 5, samp_method = args.smote_method,
                 rel_thres = args.smote_threshold, rel_method = 'manual',
-                rel_ctrl_pts_rg=[[60, 1, 0], [50, 1, 0], [40, 0, 0], [30, 0, 0], [20, 1, 0]]
+                rel_ctrl_pts_rg=[[20, 1, 0], 
+                                 [30, 0, 0], 
+                                 [40, 0, 0], 
+                                 [50, 1, 0], 
+                                 [60, 1, 0]]
                 )
             done = True
 
         except ValueError:
-            if n_tries < 20:
+            if n_tries < 999:
                 n_tries += 1
             else:
                 raise
+
+    # no subject should have age larger than 70
+    data_smogn = data_smogn[data_smogn['label'] <= 70]
 
     # visualize modified distribution
     if args.decomposition_feature_names == 'd_measures':
@@ -445,15 +452,14 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
         if args.smote:
             train_features_ROI, train_labels_ROI = apply_smote(args=args, train_features=train_features_ROI, 
                                                                train_labels=train_labels, idx=idx)
-            
         # models
         svr = SVR()
         xgb = XGBRegressor()
-        rfr = RandomForestRegressor()
         # estimators = [('svr', SVR())]
         # stack_reg = StackingRegressor(estimators=estimators,
-        #                               final_estimator=RandomForestRegressor())
-        reg_configs = list(zip((svr, rfr, xgb), ('svr', 'rfr', 'xgb')))
+        #                               final_estimator=XGBRegressor())
+        # reg_configs = list(zip((svr, xgb, stack_reg), ('svr', 'xgb', 'stack_reg')))
+        reg_configs = list(zip((svr, ), ('svr', )))
         args.model_list = []
         
         scoring = "neg_root_mean_squared_error"
@@ -472,9 +478,10 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
         params['stack_reg'] = {'svr__kernel': ['linear', 'poly', 'rbf', 'sigmoid'], 
                                'svr__gamma': ['auto', 'scale'], 
                                'svr__C': [i/10.0 for i in range(5, 50, 2)], 
-                               'final_estimator__n_estimators': range(50, 150, 10), 
-                               'final_estimator__max_features': ['sqrt', 'log2', 1.0], 
-                               'final_estimator__max_depth': range(3, 30, 3)}
+                               'final_estimator__max_depth':range(3, 20, 2), 
+                               'final_estimator__min_child_weight':range(1, 9, 2),  
+                               'final_estimator__gamma':[i/10.0 for i in range(0, 5)], 
+                               'final_estimator__subsample':[i/10.0 for i in range(6, 10)]}
 
         # fit
         for reg, reg_name in reg_configs:
@@ -488,22 +495,19 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
             val_rmse = mean_squared_error(val_labels, grid.best_estimator_.predict(val_features_ROI), squared=False)
             logger.info(f"Validation set RMSE for {reg_name}: {val_rmse}")
 
-            if args.decomposition_feature_names == 'd_measures':
-                res_dict[f"{args.keyword_dict['ROI'][idx]}"][reg_name] = str(val_rmse)
-            elif args.decomposition_feature_names == 'both':
-                res_dict[f"Tract PC {idx}"][reg_name] = str(val_rmse)
-            elif args.decomposition_feature_names == 'tracts':
-                res_dict[f"{args.keyword_dict['d_measures'][idx]}"][reg_name] = str(val_rmse)
-
-            # save the trained model
+            # save results and trained model
             baseline_model_dir = f'{args.result_dir}/baseline_models/{args.decomposition_feature_names}_{args.random_state}'
             os.makedirs(baseline_model_dir, exist_ok=True)
+
             if args.decomposition_feature_names == 'd_measures':
+                res_dict[f"{args.keyword_dict['ROI'][idx]}"][reg_name] = str(val_rmse)
                 trained_model_name = f"trained_{reg_name}_{args.keyword_dict['ROI'][idx]}.sav"
             elif args.decomposition_feature_names == 'both':
+                res_dict[f"Tract PC {idx}"][reg_name] = str(val_rmse)
                 trained_model_name = f"trained_{reg_name}_Tract_PC_{idx}.sav"
             elif args.decomposition_feature_names == 'tracts':
-                trained_model_name = f"trained_{reg_name}_{args.keyword_dict['d_measures'][idx]}.sav"
+                res_dict[f"{args.keyword_dict['d_measures'][idx]}"][reg_name] = str(val_rmse)
+                trained_model_name = f"trained_{reg_name}_{args.keyword_dict['d_measures'][idx]}.sav"                
             joblib.dump(grid.best_estimator_, os.path.join(baseline_model_dir, trained_model_name))
     
     with open(os.path.join(baseline_model_dir, 'baseline_model_performance.json'), 'w') as f:
