@@ -1,13 +1,13 @@
-# code refactor for Microstructure data learning
+# add model averaging of different models (IN_P)
 
-# copy t1w images to my own dir in cubric cluster
+# copy t1w images to my own dir in cubric cluster (DONE)
 
 # code to prepare images for training (images -> array)
 
-# t1w images registration (optional)
+# t1w images registration (TODO)
 
-# code adaption for t1w image learning
+# code adaption for t1w image learning (TODO)
 
-# run models on t1w images
+# run models on t1w images (TODO)
 
-# model performance check and ensemble with microstructure models (tomorrow)
+# model performance check and ensemble with microstructure models (TODO)

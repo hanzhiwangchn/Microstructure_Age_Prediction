@@ -13,28 +13,30 @@ logger = logging.getLogger(__name__)
 results_folder = 'model_ckpt_results/tracts'
 os.makedirs(results_folder, exist_ok=True)
 
+# NOTE:
+# Current hyperparameter test (20 states & 5 runs)shows that using SMOTE and set threshold to 0.5 is essential, 
+# whereas decomposition and label controlling is less important.
 
 def build_parser_tract_training():
     parser = argparse.ArgumentParser(description='build parser for tract metrics training')
     # load and split data parameters
-    parser.add_argument('--tract-data-dir', type=str, default='tract_data/temp', help='tract data dirs')
+    parser.add_argument('--tract-data-dir', type=str, default='tract_data', help='tract data dirs')
     parser.add_argument('--val-size', type=float, default=0.1, help='val set size')
     parser.add_argument('--test-size', type=float, default=0.1, help='test set size')
     parser.add_argument('--random-state', type=int, default=0, help='random state')
     # Decomposition parameters
     parser.add_argument('--decomposition', action='store_true', default=False)
-    parser.add_argument('--decomposition-feature-names', type=str, default='d_measures', 
+    parser.add_argument('--decomposition-axis', type=str, default='d_measures', 
                         choices=['d_measures', 'tracts', 'both'], 
                         help='select on which axis to perform decomposition')
-    parser.add_argument('--decomposition-method', type=str, default='pca', choices=['pca', 'umap', 'kernel_pca'])
-    parser.add_argument('--pca-component', type=int, default=5, help='pca components')
-    parser.add_argument('--umap-component', type=int, default=5, help='umap components')
-    parser.add_argument('--kernel-pca-component', type=int, default=5, help='kernel pca components')
+    parser.add_argument('--decomposition-method', type=str, default='pca', choices=['pca', 'umap'])
+    parser.add_argument('--n-component', type=int, default=5, help='number of components for decomposition')
     # SMOTE parameters
     parser.add_argument('--smote', action='store_true', default=True)
     parser.add_argument('--smote-method', type=str, default='extreme', choices=['extreme', 'balance'],
                         help='sampling methods for SMOGN. In most cases, "extreme" is better.')
     parser.add_argument('--smote-threshold', type=float, default=0.5, help='threshold for SMOGN')
+    parser.add_argument('--smote-label-control', action='store_true', default=False)
     # less interesting parameters
     parser.add_argument('--eda', action='store_true', default=False)
     parser.add_argument('--derek-paper-plots', action='store_true', default=False)
@@ -45,6 +47,8 @@ def build_parser_tract_training():
     parser.add_argument('--scatter-prediction-plot', action='store_true', default=True)
     # test parameters
     parser.add_argument('--test-only', action='store_true', default=False, help='load trained models and do testing')
+    # run time parameter
+    parser.add_argument('--runtime', type=int, default=0, help='rum time indicator')
     return parser
 
 
@@ -56,29 +60,29 @@ def tract_training_main():
     logger.info(f'Parser arguments are {args}')
 
     # load and split data
-    train_features, val_features, test_features, train_labels, val_labels, test_labels = load_tract_data(args)
+    train_features, val_features, test_features, train_labels, val_labels, test_labels = load_tract_data(args=args)
     logger.info('Dataset loaded')
 
-    # Exploratory Data Analysis
-    # TODO: check it later
+    # Exploratory Data Analysis. NOT being used
     if args.eda:
-        perform_exploratory_data_analysis(args, train_features, train_labels)
+        exploratory_data_analysis(args, train_features, train_labels)
 
     # possible feature engineering should happen here
 
     # scale data
-    train_features, val_features, test_features = scale_data(train_features, val_features, test_features)
+    train_features, val_features, test_features = scale_data(args, train_features, val_features, test_features)
     logger.info('Dataset scaled')
 
-    # perform decomposition: (PCA, UMAP or Kernel PCA)
+    # perform decomposition: (PCA or UMAP)
     if args.decomposition:
         train_features, val_features, test_features = apply_decomposition(args, train_features, val_features, test_features)
-    logger.info('Dataset decomposed')
+        logger.info('Dataset decomposed')
+    else:
+        logger.info('No decomposition')
     logger.info(f"Training feature shape: {train_features.shape}, val feature shape: {val_features.shape}, test feature shape: {test_features.shape}."
                 f"Training label shape: {train_labels.shape}, val label shape: {val_labels.shape}, test label shape: {test_labels.shape}")
 
-    # plot age vs. principle component 1 for each tract region (Derek's paper)
-    # TODO: check it later
+    # plot age vs. principle component 1 for each tract region (Derek's paper). NOT being used
     if args.derek_paper_plots and args.decomposition == 'd_measures':
         paper_plots_derek(args, train_features, train_labels)
 
