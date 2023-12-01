@@ -1,4 +1,4 @@
-import logging, json, os, joblib, collections
+import logging, json, os, joblib
 
 import numpy as np
 import pandas as pd
@@ -373,11 +373,15 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
         # models
         svr = SVR()
         xgb = XGBRegressor()
-        estimators = [('svr', SVR())]
-        stack_reg = StackingRegressor(estimators=estimators,
-                                      final_estimator=XGBRegressor())
+        estimators_1 = [('svr', SVR())]
+        stack_reg_1 = StackingRegressor(estimators=estimators_1,
+                                        final_estimator=XGBRegressor())
+        estimators_2 = [('xgb', XGBRegressor())]
+        stack_reg_2 = StackingRegressor(estimators=estimators_2,
+                                        final_estimator=SVR())
         # reg_configs = list(zip((svr, xgb, stack_reg), ('svr', 'xgb', 'stack_reg')))
-        reg_configs = list(zip((svr, xgb), ('svr', 'xgb', )))
+        reg_configs = list(zip((svr, xgb, stack_reg_1, stack_reg_2), 
+                               ('svr', 'xgb', 'stack_reg_1', 'stack_reg_2')))
         args.model_list = []
         
         scoring = "neg_root_mean_squared_error"
@@ -386,20 +390,24 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
         params['svr'] = {'kernel': ['linear', 'poly', 'rbf', 'sigmoid'], 
                          'gamma': ['auto', 'scale'], 
                          'C': [i/10.0 for i in range(5, 50, 2)]}
-        params['rfr'] = {'n_estimators': range(50, 150, 10), 
-                         'max_features': ['sqrt', 'log2', 1.0], 
-                         'max_depth': range(2, 20, 2)}
         params['xgb'] = {'max_depth':range(3, 20, 2), 
                          'min_child_weight':range(1, 9, 2), 
                          'gamma':[i/10.0 for i in range(0, 5)], 
                          'subsample':[i/10.0 for i in range(6, 10)]}
-        params['stack_reg'] = {'svr__kernel': ['linear', 'poly', 'rbf', 'sigmoid'], 
-                               'svr__gamma': ['auto', 'scale'], 
-                               'svr__C': [i/10.0 for i in range(5, 50, 2)], 
-                               'final_estimator__max_depth':range(3, 20, 2), 
-                               'final_estimator__min_child_weight':range(1, 9, 2),  
-                               'final_estimator__gamma':[i/10.0 for i in range(0, 5)], 
-                               'final_estimator__subsample':[i/10.0 for i in range(6, 10)]}
+        params['stack_reg_1'] = {'svr__kernel': ['linear', 'poly', 'rbf', 'sigmoid'], 
+                                 'svr__gamma': ['auto', 'scale'], 
+                                 'svr__C': [i/10.0 for i in range(5, 50, 2)], 
+                                 'final_estimator__max_depth':range(3, 20, 2), 
+                                 'final_estimator__min_child_weight':range(1, 9, 2),  
+                                 'final_estimator__gamma':[i/10.0 for i in range(0, 5)], 
+                                 'final_estimator__subsample':[i/10.0 for i in range(6, 10)]}
+        params['stack_reg_2'] = {'xgb__max_depth':range(3, 20, 2), 
+                                 'xgb__min_child_weight':range(1, 9, 2),  
+                                 'xgb__gamma':[i/10.0 for i in range(0, 5)], 
+                                 'xgb__subsample':[i/10.0 for i in range(6, 10)],
+                                 'final_estimator__kernel': ['linear', 'poly', 'rbf', 'sigmoid'], 
+                                 'final_estimator__gamma': ['auto', 'scale'], 
+                                 'final_estimator__C': [i/10.0 for i in range(5, 50, 2)]}
 
         # fit
         for reg, reg_name in reg_configs:
