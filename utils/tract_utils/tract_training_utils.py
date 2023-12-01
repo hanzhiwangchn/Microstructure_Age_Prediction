@@ -349,7 +349,7 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
     When decomposition method is 'tracts', d_measure-wise baseline is trained.
     """
     res_dict = dict()
-    for idx in range(train_features.shape[1])[:4]:
+    for idx in range(train_features.shape[1]):
         if args.decomposition_axis == 'd_measures':
             feature_of_interest = args.keyword_dict['ROI'][idx]
         elif args.decomposition_axis == 'tracts':
@@ -433,7 +433,7 @@ def load_trained_model_ensemble(args, train_features, val_features, test_feature
     for reg_name in args.model_list:
         val_res_dict[reg_name] = []
         test_res_dict[reg_name] = []
-        for idx in range(train_features.shape[1])[:4]:
+        for idx in range(train_features.shape[1]):
             val_features_ROI = val_features[:, idx, :] 
             test_features_ROI = test_features[:, idx, :] 
             if args.decomposition_axis == 'd_measures':
@@ -480,6 +480,11 @@ def load_trained_model_ensemble(args, train_features, val_features, test_feature
     # ensemble predictions for all models
     temp_list = [each for each in final_ensemble_dict.values()]
     final_ensemble_dict['ensemble'] = np.stack(temp_list, axis=-1).mean(axis=-1)
+    with open(os.path.join(args.baseline_model_dir, 'baseline_model_performance.json'), 'r+') as f:
+        res_dict = json.load(f)
+        res_dict[f'val_average_top3_ensemble'] = str(mean_squared_error(val_labels, final_ensemble_dict['ensemble'], squared=False))
+    with open(os.path.join(args.baseline_model_dir, 'baseline_model_performance.json'), 'w') as f:
+        json.dump(res_dict, f)
 
     # add scatter plot for test set
     if args.scatter_prediction_plot:
