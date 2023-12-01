@@ -2,7 +2,7 @@
 
 # skull stripping (DONE)
 
-# t1w images registration (TODO)
+# images registration to MNI152 (DONE)
 
 # code adaption for t1w image learning (IN_P)
 

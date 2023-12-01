@@ -245,6 +245,14 @@ def prep_tract_data(args):
     
     # extract tract data
     common_id = sorted(['sub-' + i for i in common_id])
+
+    # save selected subject id to txt file
+    file_path ='wand_tract_training_ids_sorted.txt'
+    with open(file_path, 'w') as file:
+        for item in common_id:
+            file.write("%s\n" % item)
+
+    # prepare tract data
     full_dataset = []
     for tract_metric in tract_fullname_dict.keys():
         df = pd.read_csv(os.path.join(args.wand_tract_dir_prefix, tract_fullname_dict[tract_metric]), 
@@ -266,14 +274,14 @@ def build_wand_tract_metric_fullname_dict():
     QMT is not being used since it contains subjects
     """
     tract_fullname_dict = dict()
-    # tract_fullname_dict['KFA_DKI'] = 'allsubs_kurtosis_fractional_anisotropy_KFA.txt'
-    # tract_fullname_dict['ICVF_NODDI'] = 'allsubs_ICVF.txt'
+    tract_fullname_dict['KFA_DKI'] = 'allsubs_kurtosis_fractional_anisotropy_KFA.txt'
+    tract_fullname_dict['ICVF_NODDI'] = 'allsubs_ICVF.txt'
     tract_fullname_dict['AD_CHARMED'] = 'allsubs_fractional_anisotropy_AD.txt'
     tract_fullname_dict['FA_CHARMED'] = 'allsubs_fractional_anisotropy_FA.txt'
     tract_fullname_dict['RD_CHARMED'] = 'allsubs_radial_diffusivity_RD.txt'
     tract_fullname_dict['MD_CHARMED'] = 'allsubs_mean_diffusivity_MD.txt'
     tract_fullname_dict['FRtot_CHARMED'] = 'allsubs_CHARMED_FRtot.txt'
-    # tract_fullname_dict['MWF_mcDESPOT'] = 'allsubs_mcDESPOT_3C_f_m_mcf.txt'
+    tract_fullname_dict['MWF_mcDESPOT'] = 'allsubs_mcDESPOT_3C_f_m_mcf.txt'
     # tract_fullname_dict['QMT'] = 'allsubs_QMT_f_b_mcf.txt'
 
     return tract_fullname_dict
