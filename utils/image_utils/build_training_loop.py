@@ -5,10 +5,10 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
-from utils.common_utils import calculate_correlation
-from utils.build_loss_function import build_loss_function
-from utils.build_model import build_model_test
-from utils.build_two_stage_correction import apply_two_stage_correction
+from utils.image_utils.common_utils import calculate_correlation
+from utils.image_utils.build_loss_function import build_loss_function
+from utils.image_utils.build_model import build_model_test
+from utils.image_utils.build_two_stage_correction import apply_two_stage_correction
 
 logger = logging.getLogger(__name__)
 

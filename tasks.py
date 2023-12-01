@@ -1,12 +1,10 @@
-# add model averaging of different models (IN_P)
+# code to prepare images for training (images -> array) (IN_P)
 
-# copy t1w images to my own dir in cubric cluster (DONE)
-
-# code to prepare images for training (images -> array)
+# skull stripping (DONE)
 
 # t1w images registration (TODO)
 
-# code adaption for t1w image learning (TODO)
+# code adaption for t1w image learning (IN_P)
 
 # run models on t1w images (TODO)
 

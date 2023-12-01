@@ -11,20 +11,21 @@ from utils.image_utils.build_model_stacking import prepare_stacking_training_dat
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 # create results folder
-results_folder = 'model_ckpt_results'
+results_folder = 'model_ckpt_results/images'
 os.makedirs(results_folder, exist_ok=True)
 
 
-def build_parser_image_baseline_training():
+# NOTE:
+# model stacking is out of consideration at the moment
+
+def build_parser_image_training():
     """
-    build parser for training baseline models using microstructure images.
-    For the skewed loss, python main.py --skewed-loss --compact-dynamic --comment run0
-    For two-stage correction, python main.py --two-stage-correction --comment run1
+    build parser for training models using microstructure and t1w images.
     """
-    parser = argparse.ArgumentParser(description='Baseline model training using images')
+    parser = argparse.ArgumentParser(description='build parser for image training')
     parser.add_argument('--model', type=str, default='densenet', choices=['densenet', 'resnet'],
                         help='model configurations')
-    parser.add_argument('--loss-type', type=str, default='L1', choices=['L1', 'L2'],
+    parser.add_argument('--loss-type', type=str, default='L1', choices=['L1'],
                         help='ordinary loss function configurations')
     parser.add_argument('--correlation-type', type=str, default='pearson', choices=['pearson', 'spearman'],
                         help='correlation metric configurations')
@@ -48,24 +49,22 @@ def build_parser_image_baseline_training():
     parser.add_argument('--two-stage-correction', action='store_true', default=False,
                         help='use the two-stage correction approach for the normal loss')
     # frequently used settings
-    parser.add_argument('--dataset', type=str, default='wand_compact', choices=['wand_compact'],
+    parser.add_argument('--dataset', type=str, default='wand_t1w', choices=['wand_compact', 'wand_t1w'],
                         help='specify which dataset to use')
-    parser.add_argument('--image-modality', type=str, default='KFA_DKI', 
+    parser.add_argument('--image-modality', type=str, default='t1w', 
                         choices=['KFA_DKI', 'ICVF_NODDI', 'FA_CHARMED', 'RD_CHARMED', 'MD_CHARMED', 
-                                 'AD_CHARMED', 'FRtot_CHARMED', 'MWF_mcDESPOT'],
+                                 'AD_CHARMED', 'FRtot_CHARMED', 'MWF_mcDESPOT', 't1w'],
                         help='specify which dataset to use')
-    parser.add_argument('--random-state', type=int, default=1000,
+    parser.add_argument('--random-state', type=int, default=0,
                         help='used in train test dataset split')
     parser.add_argument('--comment', type=str, default='run0',
                         help='comments to distinguish different runs')
     # default settings
-    parser.add_argument('--val-test-size', type=float, default=0.2,
-                        help='proportion of validation & test set of the total dataset')
-    parser.add_argument('--test-size', type=float, default=0.5,
-                        help='proportion of test set of the "validation & test" set')
+    parser.add_argument('--val-size', type=float, default=0.1)
+    parser.add_argument('--test-size', type=float, default=0.1)
     parser.add_argument('--init-lambda', type=float, default=1.0,
                         help='default lambda value for the skewed loss')
-    parser.add_argument('--batch-size', type=int, default=8)
+    parser.add_argument('--batch-size', type=int, default=4)
     parser.add_argument('--num-train-epochs', type=int, default=20, help='number of epoch')
     parser.add_argument('--params-init', type=str, default='kaiming_uniform',
                         choices=['default', 'kaiming_uniform', 'kaiming_normal'],
@@ -83,15 +82,15 @@ def build_parser_image_baseline_training():
     parser.add_argument('--test', action='store_true', default=False,
                         help='testing')
     # stacking
-    parser.add_argument('--run-stacking', action='store_true', default=True,
+    parser.add_argument('--run-stacking', action='store_true', default=False,
                         help='run stacking')
     return parser
 
 
 def baseline_model_training_images():
-    """overall workflow of baseline model training using microstructure images"""
+    """main pipeline for image training"""
     # build parser
-    args = build_parser_image_baseline_training().parse_args()
+    args = build_parser_image_training().parse_args()
     
     # update args based on different datasets
     args = update_args(args=args)

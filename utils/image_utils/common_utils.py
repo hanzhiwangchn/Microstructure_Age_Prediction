@@ -7,7 +7,8 @@ import torchio as tio
 
 logger = logging.getLogger(__name__)
 results_folder = 'model_ckpt_results'
-WAND_NPY_DATA_DIR = '/cubric/data/c1809127/314_wand_compact'
+WAND_NPY_micro_DATA_DIR = '/cubric/data/c1809127/314_wand_compact'
+WAND_NPY_t1w_DATA_DIR = '/cubric/data/c1809127/314_wand_mri_extracted'
 
 
 # ------------------- Pytorch Dataset ---------------------
@@ -198,7 +199,15 @@ def update_args(args):
     logger.info(f'Found device: {args.device}')
 
     if args.dataset == 'wand_compact':
-        args.data_dir = os.path.join(WAND_NPY_DATA_DIR, args.image_modality)
+        args.data_dir = os.path.join(WAND_NPY_micro_DATA_DIR, args.image_modality)
+        args.num_train_epochs = 200
+        args.batch_size = 4
+        args.update_lambda_start_epoch = 50
+        args.update_lambda_second_phase_start_epoch = 100
+        args.save_best_start_epoch = 10
+
+    elif args.dataset == 'wand_t1w':
+        args.data_dir = os.path.join(WAND_NPY_t1w_DATA_DIR, args.image_modality)
         args.num_train_epochs = 200
         args.batch_size = 4
         args.update_lambda_start_epoch = 50
@@ -208,7 +217,7 @@ def update_args(args):
     # quick pipeline check setting
     if args.run_code_test:
         # training
-        args.data_dir = os.path.join(WAND_NPY_DATA_DIR, args.image_modality)
+        args.data_dir = os.path.join(WAND_NPY_micro_DATA_DIR, args.image_modality)
         args.model = 'resnet'
         args.num_train_epochs = 50
         args.batch_size = 32
