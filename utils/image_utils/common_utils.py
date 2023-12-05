@@ -8,7 +8,8 @@ import torchio as tio
 logger = logging.getLogger(__name__)
 results_folder = 'model_ckpt_results'
 WAND_NPY_micro_DATA_DIR = '/cubric/data/c1809127/314_wand_compact'
-WAND_NPY_t1w_DATA_DIR = '/cubric/data/c1809127/314_wand_mri_extracted'
+WAND_NPY_t1w_DATA_DIR = '/cubric/data/c1809127/314_wand_mri_preprocessed_npy'
+# WAND_NPY_t1w_DATA_DIR = '/Users/hanzhiwang/Datasets'
 
 
 # ------------------- Pytorch Dataset ---------------------
@@ -35,7 +36,7 @@ class TrainDataset(torch.utils.data.Dataset):
         return {'image': image, 'label': label}
 
 
-class ValidationDataset(torch.utils.data.Dataset):
+class ValDataset(torch.utils.data.Dataset):
     """
     build validation dataset
     Note that Huggingface requires that __getitem__ method returns dict object
@@ -198,7 +199,7 @@ def update_args(args):
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logger.info(f'Found device: {args.device}')
 
-    if args.dataset == 'wand_compact':
+    if args.dataset == 'wand_micro':
         args.data_dir = os.path.join(WAND_NPY_micro_DATA_DIR, args.image_modality)
         args.num_train_epochs = 200
         args.batch_size = 4
@@ -207,7 +208,7 @@ def update_args(args):
         args.save_best_start_epoch = 10
 
     elif args.dataset == 'wand_t1w':
-        args.data_dir = os.path.join(WAND_NPY_t1w_DATA_DIR, args.image_modality)
+        args.data_dir = os.path.join(WAND_NPY_t1w_DATA_DIR)
         args.num_train_epochs = 200
         args.batch_size = 4
         args.update_lambda_start_epoch = 50
@@ -217,7 +218,7 @@ def update_args(args):
     # quick pipeline check setting
     if args.run_code_test:
         # training
-        args.data_dir = os.path.join(WAND_NPY_micro_DATA_DIR, args.image_modality)
+        args.data_dir = WAND_NPY_t1w_DATA_DIR
         args.model = 'resnet'
         args.num_train_epochs = 50
         args.batch_size = 32
@@ -234,7 +235,6 @@ def update_args(args):
     args.model_name = f'{args.model}_loss_{args.loss_type}_skewed_{args.skewed_loss}_modality_{args.image_modality}_' \
                       f'{args.comment}_rnd_state_{args.random_state}'
     args.out_dir = f'{args.out_dir_main}/{args.model_name}'
-    args.stacking_best_model_dir = 'best_models_stacking'
     os.makedirs(args.out_dir, exist_ok=True)
     return args
 

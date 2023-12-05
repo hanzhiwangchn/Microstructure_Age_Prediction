@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 # Given a specific parameter config combination, 
 # load relevant json file to calculate their mean and std of the MAE
-result_dir_prefix = '/Users/hanzhiwang/tracts/baseline_models'
+result_dir_prefix = '/Users/hanzhiwang/res/tracts/baseline_models'
 decomposition_axis = 'd_measures'
 models = ['svr']
 
@@ -23,14 +23,14 @@ def test():
     total_res_dict = dict()
     for each_model_setting in model_settings:
         total_res_dict[each_model_setting] = dict()
-        for rnd_state in [0,1,2]:
+        for rnd_state in [0,1,2,3,4,5,6,7,10,12,13,15,16,17,18,20,22,23,26,27]:
             temp_list = []
-            for runtime in range(5):
+            for runtime in range(3):
                 res_folder_name = f'{each_model_setting}_state_{rnd_state}_runtime_{runtime}'
                 with open(os.path.join(result_dir_prefix, res_folder_name, 'baseline_model_performance.json'), 'r') as f:
                     res_dict = json.load(f)
-                temp_list.append(float(res_dict[f'val_averaged_top3_stack_reg_1']))
-            # total_res_dict[each_model_setting][f'state_{rnd_state}'] = np.median(np.array(temp_list))
+                temp_list.append(float(res_dict[f'val_average_top3_ensemble']))
+            # total_res_dict[each_model_setting][f'state_{rnd_state}'] = np.mean(np.array(temp_list))
             total_res_dict[each_model_setting][f'state_{rnd_state}'] = temp_list
     
     for each_model_setting in model_settings:
@@ -41,7 +41,7 @@ def test():
         total_res_list.append(temp)
 
     total_res_list = np.array(total_res_list)
-    print(total_res_list.shape)
+    # print(total_res_list.shape)
 
     for i in range(total_res_list.shape[0]):
         logger.info(f'MAEs: {total_res_list[i]}')

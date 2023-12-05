@@ -1,4 +1,4 @@
-# code to prepare images for training (images -> array) (IN_P)
+# code to prepare images for training (images -> array) (DONE)
 
 # skull stripping (DONE)
 

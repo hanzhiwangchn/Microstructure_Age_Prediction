@@ -2,10 +2,9 @@ import argparse, logging, os
 
 from utils.image_utils.common_utils import RunManager, update_args
 from utils.image_utils.build_dataset import build_dataset
-from utils.image_utils.build_model import build_model, build_model_stacking
+from utils.image_utils.build_model import build_model
 from utils.image_utils.build_loss_function import build_loss_function
 from utils.image_utils.build_training_loop import build_loader, build_optimizer, train_val_test
-from utils.image_utils.build_model_stacking import prepare_stacking_training_data
 
 # create logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -15,13 +14,8 @@ results_folder = 'model_ckpt_results/images'
 os.makedirs(results_folder, exist_ok=True)
 
 
-# NOTE:
-# model stacking is out of consideration at the moment
-
 def build_parser_image_training():
-    """
-    build parser for training models using microstructure and t1w images.
-    """
+    """build parser for training models using microstructure and t1w images"""
     parser = argparse.ArgumentParser(description='build parser for image training')
     parser.add_argument('--model', type=str, default='densenet', choices=['densenet', 'resnet'],
                         help='model configurations')
@@ -49,7 +43,7 @@ def build_parser_image_training():
     parser.add_argument('--two-stage-correction', action='store_true', default=False,
                         help='use the two-stage correction approach for the normal loss')
     # frequently used settings
-    parser.add_argument('--dataset', type=str, default='wand_t1w', choices=['wand_compact', 'wand_t1w'],
+    parser.add_argument('--dataset', type=str, default='wand_t1w', choices=['wand_micro', 'wand_t1w'],
                         help='specify which dataset to use')
     parser.add_argument('--image-modality', type=str, default='t1w', 
                         choices=['KFA_DKI', 'ICVF_NODDI', 'FA_CHARMED', 'RD_CHARMED', 'MD_CHARMED', 
@@ -81,9 +75,6 @@ def build_parser_image_training():
     # testing
     parser.add_argument('--test', action='store_true', default=False,
                         help='testing')
-    # stacking
-    parser.add_argument('--run-stacking', action='store_true', default=False,
-                        help='run stacking')
     return parser
 
 
@@ -91,8 +82,6 @@ def baseline_model_training_images():
     """main pipeline for image training"""
     # build parser
     args = build_parser_image_training().parse_args()
-    
-    # update args based on different datasets
     args = update_args(args=args)
     logger.info(f'Parser arguments are {args}')
 
@@ -101,10 +90,7 @@ def baseline_model_training_images():
     logger.info('Dataset loaded')
 
     # build model
-    if args.run_stacking:
-        model = build_model_stacking(args=args)
-    else:
-        model = build_model(args=args)
+    model = build_model(args=args)
     logger.info('Model loaded')
 
     # build loss function
@@ -114,20 +100,17 @@ def baseline_model_training_images():
     train_loader, val_loader, test_loader = build_loader(args=args, dataset_train=dataset_train, 
         dataset_val=dataset_val, dataset_test=dataset_test)
     
-    if not args.run_stacking:
-        # build optimizer
-        optimizer, lr_scheduler = build_optimizer(model=model, train_loader=train_loader, args=args)
+    # build optimizer
+    optimizer, lr_scheduler = build_optimizer(model=model, train_loader=train_loader, args=args)
 
-        # build RunManager to save stats from training
-        m = RunManager(args=args)
-        m.begin_run(train_loader=train_loader, val_loader=val_loader, test_loader=test_loader)
+    # build RunManager to save stats from training
+    m = RunManager(args=args)
+    m.begin_run(train_loader=train_loader, val_loader=val_loader, test_loader=test_loader)
 
-        # train and evaluate
-        train_val_test(args=args, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader, 
-            model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, m=m, loss_fn_train=loss_fn_train)
+    # train and evaluate
+    train_val_test(args=args, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader, 
+        model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, m=m, loss_fn_train=loss_fn_train)
 
-    else:
-        prepare_stacking_training_data(args, model, train_loader, val_loader, test_loader)
     logger.info('Model finished!')
 
 

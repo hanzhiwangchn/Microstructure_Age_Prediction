@@ -21,8 +21,6 @@ def build_loss_function(args):
         logger.info('Use normal loss')
         if args.loss_type == 'L1':
             loss_fn_train = nn.L1Loss()
-        elif args.loss_type == 'L2':
-            loss_fn_train = nn.MSELoss()
     return loss_fn_train, loss_fn_val, loss_fn_test
 
 

@@ -17,22 +17,18 @@ logger = logging.getLogger(__name__)
 def build_loader(args, dataset_train, dataset_val, dataset_test):
     """main function for dataloader building"""
     # build data-loader configurations
-    if args.run_stacking:
-        train_kwargs = {'batch_size': args.batch_size, 'shuffle': False}
-    else:
-        train_kwargs = {'batch_size': args.batch_size, 'shuffle': True}
-        
-    validation_kwargs = {'batch_size': args.batch_size, 'shuffle': False}
+    train_kwargs = {'batch_size': args.batch_size, 'shuffle': True}
+    val_kwargs = {'batch_size': args.batch_size, 'shuffle': False}
     test_kwargs = {'batch_size': args.batch_size, 'shuffle': False}
     if torch.cuda.is_available():
         cuda_kwargs = {'pin_memory': True}
         train_kwargs.update(cuda_kwargs)
-        validation_kwargs.update(cuda_kwargs)
+        val_kwargs.update(cuda_kwargs)
         test_kwargs.update(cuda_kwargs)
 
     # initialize loader
     train_loader = torch.utils.data.DataLoader(dataset_train, **train_kwargs)
-    val_loader = torch.utils.data.DataLoader(dataset_val, **validation_kwargs)
+    val_loader = torch.utils.data.DataLoader(dataset_val, **val_kwargs)
     test_loader = torch.utils.data.DataLoader(dataset_test, **test_kwargs)
 
     return train_loader, val_loader, test_loader
@@ -42,13 +38,10 @@ def build_loader(args, dataset_train, dataset_val, dataset_test):
 def build_optimizer(model, train_loader, args):
     """build optimizer and learning rate scheduler"""
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
-
-    num_update_steps_per_epoch = math.ceil(len(train_loader) / args.gradient_accumulation_steps)
-    args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
-
+    
+    args.max_train_steps = args.num_train_epochs * len(train_loader)
     lr_scheduler = get_scheduler(name=args.lr_scheduler_type, optimizer=optimizer,
-        num_warmup_steps=args.num_warmup_steps * args.gradient_accumulation_steps,
-        num_training_steps=args.max_train_steps * args.gradient_accumulation_steps)
+        num_warmup_steps=args.num_warmup_steps, num_training_steps=args.max_train_steps)
     # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
     return optimizer, lr_scheduler
