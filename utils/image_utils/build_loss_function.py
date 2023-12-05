@@ -1,9 +1,7 @@
 import logging, torch
-
 import torch.nn as nn
 
 logger = logging.getLogger(__name__)
-results_folder = 'model_ckpt_results'
 
 
 def build_loss_function(args):

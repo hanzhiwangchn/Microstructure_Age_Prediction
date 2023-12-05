@@ -6,10 +6,10 @@ import pandas as pd
 import torchio as tio
 
 logger = logging.getLogger(__name__)
-results_folder = 'model_ckpt_results'
+results_folder = 'model_ckpt_results/images'
 WAND_NPY_micro_DATA_DIR = '/cubric/data/c1809127/314_wand_compact'
-WAND_NPY_t1w_DATA_DIR = '/cubric/data/c1809127/314_wand_mri_preprocessed_npy'
-# WAND_NPY_t1w_DATA_DIR = '/Users/hanzhiwang/Datasets'
+# WAND_NPY_t1w_DATA_DIR = '/cubric/data/c1809127/314_wand_mri_preprocessed_npy'
+WAND_NPY_t1w_DATA_DIR = '/Users/hanzhiwang/Datasets'
 
 
 # ------------------- Pytorch Dataset ---------------------
