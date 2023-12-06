@@ -8,8 +8,8 @@ import torchio as tio
 logger = logging.getLogger(__name__)
 results_folder = 'model_ckpt_results/images'
 WAND_NPY_micro_DATA_DIR = '/cubric/data/c1809127/314_wand_compact'
-# WAND_NPY_t1w_DATA_DIR = '/cubric/data/c1809127/314_wand_mri_preprocessed_npy'
-WAND_NPY_t1w_DATA_DIR = '/Users/hanzhiwang/Datasets'
+WAND_NPY_t1w_DATA_DIR = '/cubric/data/c1809127/314_wand_mri_preprocessed_npy'
+# WAND_NPY_t1w_DATA_DIR = '/Users/hanzhiwang/Datasets'
 
 
 # ------------------- Pytorch Dataset ---------------------
@@ -155,6 +155,7 @@ class RunManager:
         self.epoch_stats['train_loss'] = float(f'{train_loss:.2f}')
         self.epoch_stats.update(self.run_metrics_train)
         self.epoch_stats.update(self.run_metrics_val)
+        self.epoch_stats.update(self.run_metrics_test)
         self.epoch_stats['train_correlation'] = float(f'{self.run_correlation_train[-1]:.2f}')
         self.epoch_stats['val_correlation'] = float(f'{self.run_correlation_val[-1]:.2f}')
         self.epoch_stats['test_correlation'] = float(f'{self.run_correlation_test[-1]:.2f}')

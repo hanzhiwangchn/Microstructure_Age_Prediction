@@ -1,11 +1,11 @@
-# code to prepare images for training (images -> array) (DONE)
-
-# skull stripping (DONE)
-
-# images registration to MNI152 (DONE)
-
-# code adaption for t1w image learning (IN_P)
-
-# run models on t1w images (TODO)
+# Image preprocessing pipeline:
+#    1. skull-stripping using deep brain (Github)
+#    2. image registration to MNI152. FSL FLIRT
+#    3. intensity standardization
+#    4. blank background removal  bounding box [:, 13:166, 14:206, 0:161]
 
 # model performance check and ensemble with microstructure models (TODO)
+
+# tract code need refactor, result is finished
+
+# Performance check before Sat

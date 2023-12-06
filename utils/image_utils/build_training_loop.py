@@ -62,6 +62,7 @@ def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer
             m.begin_epoch()
             train(args, model, m, train_loader, optimizer, lr_scheduler, loss_fn_train)
             val(args, model, m, val_loader)
+            test(args, model, m, test_loader)
 
             # calculate correlation on train/validation/test set
             calculate_correlation(args, model, m, train_loader, val_loader, test_loader)
@@ -93,7 +94,7 @@ def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer
             m.display_epoch_results()
     
     # testing
-    model = evaluate_test_set_performance(args, test_loader, m)
+    model = evaluate_test_set_performance(args, val_loader, m)
 
     m.end_run()
     # save stats
@@ -170,6 +171,35 @@ def val(args, model, m, val_loader):
     
     # track val metrics
     m.collect_val_metrics(metric_results=all_metrics_results)
+
+
+def test(args, model, m, test_loader):
+    """validation part"""
+    all_metrics, all_metrics_results = dict(), dict()
+    all_metric_type = ["mae"]
+    for metric in all_metric_type:
+        all_metrics[metric] = evaluate.load(metric)
+
+    model.eval()
+    with torch.no_grad():
+        for batch in test_loader:
+            batch = {k: v.to(args.device) for k, v in batch.items()}
+            outputs = model(batch['image'])
+
+            assert outputs.shape == batch['label'].shape
+            assert len(outputs.shape) == 2
+
+            for metric in all_metric_type:
+                all_metrics[metric].add_batch(predictions=outputs, references=batch["label"])
+
+    for metric in all_metric_type:
+        if metric in ["recall", "precision", "f1"]:
+            all_metrics_results.update(all_metrics[metric].compute(average='weighted'))
+        else:
+            all_metrics_results.update(all_metrics[metric].compute())
+    
+    # track val metrics
+    m.collect_test_metrics(metric_results=all_metrics_results)
 
 
 def evaluate_test_set_performance(args, test_loader, m):

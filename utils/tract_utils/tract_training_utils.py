@@ -18,7 +18,7 @@ from sklearn.ensemble import StackingRegressor
 from xgboost import XGBRegressor
 from sklearn.svm import SVR
 
-results_folder = 'model_ckpt_results/tracts'
+results_folder = '/Users/hanzhiwang/tract_full_res/tracts'
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +30,8 @@ def update_args(args):
                         f'Smote_{args.smote}_{args.smote_threshold}_control_{args.smote_label_control}_' \
                         f'state_{args.random_state}_runtime_{args.runtime}'
     args.baseline_model_dir = f'{args.result_dir}/baseline_models/{args.model_config}'
-    os.makedirs(args.baseline_model_dir, exist_ok=True)
+    if not args.multi_runs_ensemble:
+        os.makedirs(args.baseline_model_dir, exist_ok=True)
 
     return args
 
@@ -500,3 +501,77 @@ def load_trained_model_ensemble(args, train_features, val_features, test_feature
         ax.legend(fontsize=40)
         ax.tick_params(axis='both', which='major', labelsize=25)
         plt.savefig(os.path.join(args.baseline_model_dir, f'scatter_test_performance.png'), bbox_inches='tight')
+
+
+def ensemble_model_from_multiple_runs(args, train_features, val_features, test_features, val_labels, test_labels):
+    val_res_dict = dict()
+    test_res_dict = dict()
+    final_ensemble_dict = dict()
+    trained_model_list = ['svr', 'xgb', 'stack_reg_1']
+
+    # load each trained model again and give predictions on test set again.
+    for reg_name in trained_model_list:
+        final_ensemble_dict[reg_name] = dict()
+        for run_idx in range(3):
+            val_res_dict[reg_name] = []
+            test_res_dict[reg_name] = []
+            for idx in range(train_features.shape[1]):
+                val_features_ROI = val_features[:, idx, :] 
+                test_features_ROI = test_features[:, idx, :] 
+                if args.decomposition_axis == 'd_measures':
+                    feature_name = args.keyword_dict['ROI'][idx]
+                elif args.decomposition_axis == 'both':
+                    feature_name = f"Tract_PC_{idx}"
+                elif args.decomposition_axis == 'tracts':
+                    feature_name = args.keyword_dict['d_measures'][idx]
+        
+                # fetch the right model
+                args.model_config = f'Decom_{args.decomposition}_{args.decomposition_axis}_' \
+                        f'Smote_{args.smote}_{args.smote_threshold}_control_{args.smote_label_control}_' \
+                        f'state_{args.random_state}_runtime_{run_idx}'
+                args.baseline_model_dir = f'{args.result_dir}/baseline_models/{args.model_config}'
+                trained_model_name = f'trained_{reg_name}_{feature_name}.sav'
+                loaded_model = joblib.load(os.path.join(args.baseline_model_dir, trained_model_name))
+                val_preds = loaded_model.predict(val_features_ROI)
+                test_preds = loaded_model.predict(test_features_ROI)
+                val_res_dict[reg_name].append(val_preds)
+                test_res_dict[reg_name].append(test_preds)
+
+            # select idx with best test loss and best features based on val results
+            smallest_idx = np.argpartition(np.array([mean_squared_error(val_labels, i, squared=False) for i in val_res_dict[reg_name]]), 3)[:3]
+
+            # save prediction for current model
+            final_ensemble_dict[reg_name][f'run{run_idx}'] = np.stack(val_res_dict[reg_name], axis=-1)[:, smallest_idx].mean(axis=-1)
+
+        # ensemble predictions for all runs
+        temp_list = [each for each in final_ensemble_dict[reg_name].values()]
+        final_ensemble_dict[reg_name][f'ensemble_runs_{reg_name}'] = np.stack(temp_list, axis=-1).mean(axis=-1)
+
+    final_ensemble_dict['ensemble'] = np.stack([final_ensemble_dict[i][f'ensemble_runs_{i}'] for i in trained_model_list], axis=-1).mean(axis=-1)
+
+    args.save_ensemble_dir = '/Users/hanzhiwang/tract_full_res/tracts/ensemble_runs_results'
+    res_dict = dict()
+    for reg_name in trained_model_list:
+        res_dict[f'ensemble_runs_{reg_name}'] = str(mean_squared_error(val_labels, final_ensemble_dict[reg_name][f'ensemble_runs_{reg_name}'], squared=False))
+    res_dict[f'ensemble_runs_ensemble'] = str(mean_squared_error(val_labels, final_ensemble_dict['ensemble'], squared=False))
+    with open(os.path.join(args.save_ensemble_dir, f'ensemble_baseline_model_performance_{args.random_state}.json'), 'w') as f:
+        json.dump(res_dict, f)
+
+    # add scatter plot for test set
+    if args.scatter_prediction_plot:
+        temp_dict = dict()
+        for each_model in trained_model_list:
+            temp_dict[f'ensemble_{each_model}'] = final_ensemble_dict[f'{each_model}'][f'ensemble_runs_{each_model}']
+        temp_dict['ensemble_ensemble'] = final_ensemble_dict['ensemble']
+        fig, ax = plt.subplots(figsize=(20, 20))
+        ax.plot([10, 70], [10, 70])
+        color = iter(plt.cm.rainbow(np.linspace(0, 1, 10)))
+        for key, value in temp_dict.items():
+            c = next(color)
+            ax.scatter(val_labels, value, s=200.0, c=c, label=key)
+        ax.set_title(f"Prediction scatter plot for all models", fontsize=40)
+        ax.set_xlabel('Age', fontsize=40)
+        ax.set_ylabel('Predictions',fontsize=40)
+        ax.legend(fontsize=40)
+        ax.tick_params(axis='both', which='major', labelsize=25)
+        plt.savefig(os.path.join(args.save_ensemble_dir, f'ensemble_scatter_test_performance_{args.random_state}.png'), bbox_inches='tight')
