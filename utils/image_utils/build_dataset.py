@@ -106,7 +106,7 @@ def build_dataset_wand_micro(args):
 def build_dataset_wand_t1w(args):
     """load t1w data"""
     # load data(in .npy format)
-    images = np.load(os.path.join(args.data_dir, f'wand_t1w_cropped_float32.npy'))
+    images = np.load(os.path.join(args.data_dir, f'wand_t1w_cropped.npy'))
     age = np.load(os.path.join(args.data_dir, f'tract_age_compact.npy'))
 
     df = pd.DataFrame(data=age, columns=['Age'])
@@ -123,8 +123,6 @@ def build_dataset_wand_t1w(args):
 
     # assign a categorical label to Age for Stratified Split
     df['Age_categorical'] = pd.qcut(df['Age'], 10, labels=[i for i in range(10)])
-
-    # TODO: it should use the tract labels
 
     # train-val & test split
     split = StratifiedShuffleSplit(test_size=args.test_size, random_state=args.random_state)

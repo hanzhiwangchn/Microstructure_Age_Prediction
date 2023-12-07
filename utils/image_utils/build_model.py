@@ -76,6 +76,8 @@ class ResNetBlock(nn.Module):
 
         layer_in = input_size if input_size is not None else 2 ** (block_number + 1)
         layer_out = 2 ** (block_number + 2)
+        if layer_out >=64:
+            layer_out = 64
 
         self.conv1 = nn.Conv3d(layer_in, layer_out, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm3d(layer_out)
@@ -114,9 +116,9 @@ class ResNet(nn.Module):
         self.fc = nn.Sequential(
             nn.Flatten(start_dim=1),
             nn.Dropout(p=0.5),
-            nn.Linear(128 * d * h * w, 64),
+            nn.Linear(64 * d * h * w, 32),
             nn.ELU(),
-            nn.Linear(64, 1)
+            nn.Linear(32, 1)
         )
 
     @staticmethod
@@ -148,4 +150,4 @@ class ResNet(nn.Module):
 
 if __name__ == '__main__':
     model = build_densenet_monai()
-    summary(model, (1, 110, 110, 66))
+    summary(model, (1, 153, 192, 161))

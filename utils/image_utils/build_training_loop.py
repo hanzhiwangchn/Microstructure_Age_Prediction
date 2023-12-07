@@ -93,8 +93,8 @@ def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer
             m.end_epoch()
             m.display_epoch_results()
     
-    # testing
-    model = evaluate_test_set_performance(args, val_loader, m)
+    model = evaluate_val_set_performance(args, val_loader, m)
+    model = evaluate_test_set_performance(args, test_loader, m)
 
     m.end_run()
     # save stats
@@ -202,6 +202,55 @@ def test(args, model, m, test_loader):
     m.collect_test_metrics(metric_results=all_metrics_results)
 
 
+def evaluate_val_set_performance(args, val_loader, m):
+    """evaluate performance here, we need to load the best model"""
+    all_metrics, all_metrics_results = dict(), dict()
+    all_metric_type = ['mae']
+    for metric in all_metric_type:
+        all_metrics[metric] = evaluate.load(metric)
+
+    # load best model
+    model = build_model_test(args=args)
+    model.eval()
+
+    # save results to csv file
+    preds_list = []
+    labels_list = []
+    with torch.no_grad():
+        for batch in val_loader:
+            batch = {k: v.to(args.device) for k, v in batch.items()}
+            outputs = model(batch['image'])
+
+            assert outputs.shape == batch['label'].shape
+            assert len(outputs.shape) == 2
+
+            for metric in all_metric_type:
+                all_metrics[metric].add_batch(predictions=outputs, references=batch["label"])
+
+            preds_list.append(outputs)
+            labels_list.append(batch['label'])
+        
+        # preds and labels will have shape (*, 1)
+        preds_tensor = torch.cat(preds_list, 0)
+        labels_tensor = torch.cat(labels_list, 0)
+
+    for metric in all_metric_type:
+        if metric in ["recall", "precision", "f1"]:
+            all_metrics_results.update(all_metrics[metric].compute(average='weighted'))
+        else:
+            all_metrics_results.update(all_metrics[metric].compute())
+    
+    # track test metrics
+    # m.collect_test_metrics(metric_results=all_metrics_results)
+
+    df_save = pd.DataFrame()
+    df_save['predicted_value'] = preds_tensor.squeeze().cpu().numpy()
+    df_save['ground_truth'] = labels_tensor.squeeze().cpu().numpy()
+    df_save.to_csv(os.path.join(args.out_dir, "performance_summary_val.csv"))
+
+    return model
+
+
 def evaluate_test_set_performance(args, test_loader, m):
     """evaluate performance here, we need to load the best model"""
     all_metrics, all_metrics_results = dict(), dict()
@@ -241,7 +290,7 @@ def evaluate_test_set_performance(args, test_loader, m):
             all_metrics_results.update(all_metrics[metric].compute())
     
     # track test metrics
-    m.collect_test_metrics(metric_results=all_metrics_results)
+    # m.collect_test_metrics(metric_results=all_metrics_results)
 
     df_save = pd.DataFrame()
     df_save['predicted_value'] = preds_tensor.squeeze().cpu().numpy()
