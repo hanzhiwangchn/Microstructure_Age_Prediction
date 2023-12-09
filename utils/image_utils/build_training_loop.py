@@ -67,6 +67,9 @@ def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer
             # calculate correlation on train/validation/test set
             calculate_correlation(args, model, m, train_loader, val_loader, test_loader)
 
+            m.end_epoch()
+            m.display_epoch_results()
+
             # dynamic lambda algorithm
             if epoch in range(args.update_lambda_start_epoch, args.num_train_epochs+1, args.compact_update_interval) \
                     and args.compact_dynamic:
@@ -90,8 +93,7 @@ def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer
                         best_loss = m.epoch_stats['val_mae']
                         torch.save(model.state_dict(), os.path.join(args.out_dir, "Best_Model.pt"))
             
-            m.end_epoch()
-            m.display_epoch_results()
+
     
     model = evaluate_val_set_performance(args, val_loader, m)
     model = evaluate_test_set_performance(args, test_loader, m)

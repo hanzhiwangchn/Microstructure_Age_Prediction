@@ -4,10 +4,10 @@ import os
 from sklearn.metrics import mean_squared_error
 
 
-image_res_dir_prefix = '/Users/hanzhiwang/images_new/images'
+image_res_dir_prefix = '/Users/hanzhiwang/image_full_res/images'
 model_names = ['densenet', 'resnet']
 
-random_state = [0 ,1, 5 ,6, 13, 15, 20 , 22]
+random_state = [0,1,2,3,5,6,7,10,13,15,16,17,20,22,23,26]
 runs = 3
 
 
@@ -20,7 +20,7 @@ def load_results():
             for i in range(runs):
                 df = pd.read_csv(os.path.join(image_res_dir_prefix, 
                                               f'{each_model}_loss_L1_skewed_False_modality_t1w_run{i}_rnd_state_{each_state}', 
-                                              'performance_summary.csv'))
+                                              'performance_summary_val.csv'))
                 image_results_dict[each_model][f'state_{each_state}'].append(df.predicted_value.tolist())
 
     ground_truth_dict = dict()
@@ -28,7 +28,7 @@ def load_results():
         ground_truth_dict[f'state_{each_state}'] = list()
         df = pd.read_csv(os.path.join(image_res_dir_prefix, 
                                       f'densenet_loss_L1_skewed_False_modality_t1w_run0_rnd_state_{each_state}', 
-                                      'performance_summary.csv'))
+                                      'performance_summary_val.csv'))
         ground_truth_dict[f'state_{each_state}'].extend(df.ground_truth.tolist())
     return image_results_dict, ground_truth_dict
 

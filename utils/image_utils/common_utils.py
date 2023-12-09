@@ -8,6 +8,7 @@ import torchio as tio
 logger = logging.getLogger(__name__)
 results_folder = 'model_ckpt_results/images'
 WAND_NPY_micro_DATA_DIR = '/cubric/data/c1809127/314_wand_compact'
+WAND_NPY_t1w_DATA_DIR = '../micro_images'
 WAND_NPY_t1w_DATA_DIR = '/cubric/data/c1809127/314_wand_mri_preprocessed_npy'
 # WAND_NPY_t1w_DATA_DIR = '/Users/hanzhiwang/Datasets'
 
@@ -220,15 +221,12 @@ def update_args(args):
     if args.run_code_test:
         # training
         args.data_dir = WAND_NPY_t1w_DATA_DIR
-        args.model = 'resnet'
-        args.num_train_epochs = 50
+        args.num_train_epochs = 10
         args.batch_size = 32
         args.update_lambda_start_epoch = 10
         args.update_lambda_second_phase_start_epoch = 20
         args.save_best_start_epoch = 1
         args.comment = 'test_run'
-        args.val_test_size = 0.8
-        args.test_size = 0.5
         args.acceptable_correlation_threshold = 0.99
 
     args.out_dir_main = results_folder
