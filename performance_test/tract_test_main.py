@@ -28,11 +28,11 @@ def model_performance_single_run():
         total_res_dict[each_model_setting] = dict()
         for rnd_state in selected_state_list:
             temp_list = []
-            for runtime in range(runtime):
-                res_folder_name = f'{each_model_setting}_state_{rnd_state}_runtime_{runtime}'
+            for runtime_idx in range(runtime):
+                res_folder_name = f'{each_model_setting}_state_{rnd_state}_runtime_{runtime_idx}'
                 with open(os.path.join(result_dir_prefix, 'baseline_models', res_folder_name, 'baseline_model_performance.json'), 'r') as f:
                     res_dict = json.load(f)
-                temp_list.append(float(res_dict[f'val_average_top3_ensemble']))
+                temp_list.append(float(res_dict[f'val_averaged_top3_ensemble']))
             # total_res_dict[each_model_setting][f'state_{rnd_state}'] = np.mean(np.array(temp_list))
             total_res_dict[each_model_setting][f'state_{rnd_state}'] = temp_list
     
@@ -80,6 +80,8 @@ def model_performance_multiple_run():
         logger.info(f'MAEs: {res_dict_total[models[i]]}')
         logger.info(f'Mean MAE: {np.mean(res_dict_total[models[i]])}')
         logger.info(f'Std MAE: {np.std(res_dict_total[models[i]])}')
+        logger.info(f'min MAE: {np.min(res_dict_total[models[i]])}')
+        logger.info(f'max MAE: {np.max(res_dict_total[models[i]])}')
         logger.info('\n')
 
         
@@ -135,4 +137,4 @@ def tract_model_best_performing_regions():
 
 
 if __name__ == '__main__':
-    model_performance_single_run()
+    model_performance_multiple_run()

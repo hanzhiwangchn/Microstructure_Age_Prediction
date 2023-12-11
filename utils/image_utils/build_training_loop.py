@@ -93,8 +93,6 @@ def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer
                         best_loss = m.epoch_stats['val_mae']
                         torch.save(model.state_dict(), os.path.join(args.out_dir, "Best_Model.pt"))
             
-
-    
     model = evaluate_val_set_performance(args, val_loader, m)
     model = evaluate_test_set_performance(args, test_loader, m)
 
@@ -222,6 +220,7 @@ def evaluate_val_set_performance(args, val_loader, m):
         for batch in val_loader:
             batch = {k: v.to(args.device) for k, v in batch.items()}
             outputs = model(batch['image'])
+            logger.info(outputs)
 
             assert outputs.shape == batch['label'].shape
             assert len(outputs.shape) == 2
@@ -241,9 +240,6 @@ def evaluate_val_set_performance(args, val_loader, m):
             all_metrics_results.update(all_metrics[metric].compute(average='weighted'))
         else:
             all_metrics_results.update(all_metrics[metric].compute())
-    
-    # track test metrics
-    # m.collect_test_metrics(metric_results=all_metrics_results)
 
     df_save = pd.DataFrame()
     df_save['predicted_value'] = preds_tensor.squeeze().cpu().numpy()

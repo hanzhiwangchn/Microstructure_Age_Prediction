@@ -11,14 +11,14 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import PCA
 import umap
-from sklearn.metrics import r2_score , mean_squared_error
+from sklearn.metrics import r2_score, mean_absolute_error
 
 import smogn
 from sklearn.ensemble import StackingRegressor
 from xgboost import XGBRegressor
 from sklearn.svm import SVR
 
-results_folder = '/Users/hanzhiwang/tract_full_res/tracts'
+results_folder = 'model_ckpt_results/tracts'
 logger = logging.getLogger(__name__)
 
 
@@ -97,17 +97,9 @@ def load_tract_data(args):
     sns.kdeplot(data=val_labels, label = "Val")
     sns.kdeplot(data=test_labels, label = "Test")
     plt.legend()
-    plt.savefig(f'{args.result_dir}/train_val_test_dist.png')
+    plt.savefig(f'{args.result_dir}/train_val_test_dist_state_{args.random_state}.png')
     plt.close()
 
-    # remove training subjects whose age is larger than 60
-    if args.outlier_removal:
-        remaining_idx = np.where(train_labels < 60)
-        train_features = train_features[remaining_idx]
-        train_labels = train_labels[remaining_idx]
-        logger.info('Perform outlier removal on Age')
-        logger.info(f"Training feature shape: {train_features.shape}, training label shape: {train_labels.shape}.")
-    
     return train_features, val_features, test_features, train_labels, val_labels, test_labels
 
 
@@ -158,7 +150,7 @@ def scale_data(args, train_features, val_features, test_features):
     num_test_sub, _, _  = test_features.shape
 
     args.scale = 1
-    train_features, val_features, test_features = transformation_helper(args, train_features, val_features, test_features)
+    train_features, val_features, test_features = transformation_helper(args=args, train_features=train_features, val_features=val_features, test_features=test_features)
     args.scale = 0
 
     # Output shape: [subject, tracts, d_measures]
@@ -172,8 +164,7 @@ def scale_data(args, train_features, val_features, test_features):
 def apply_decomposition(args, train_features, val_features, test_features):
     """
     perform decomposition based on a certain axis or both axises.
-    Decomposition methods: {PCA, UMAP, Kernel_PCA}. 
-    Currently, we only use PCA.
+    Decomposition methods: {PCA, UMAP}. 
     Output shape: [num_subject, num_tracts or num_d_measures, n_principle_component]
     We perform decomposition individually for each tract or each d_measure by default.
     When decomposing d_measures, we will train model on each tract and select top-performing models.
@@ -186,7 +177,7 @@ def apply_decomposition(args, train_features, val_features, test_features):
 
     # Decomposition on d_measures
     if args.decomposition_axis == 'd_measures':
-        train_features, val_features, test_features = transformation_helper(args, train_features, val_features, test_features)
+        train_features, val_features, test_features = transformation_helper(args=args, train_features=train_features, val_features=val_features, test_features=test_features)
 
         assert train_features.shape == (num_train_sub, num_tract_region, args.n_component)
         assert val_features.shape == (num_val_sub, num_tract_region, args.n_component)
@@ -199,7 +190,7 @@ def apply_decomposition(args, train_features, val_features, test_features):
         val_features = np.transpose(val_features, (0, 2, 1))
         test_features = np.transpose(test_features, (0, 2, 1))
 
-        train_features, val_features, test_features = transformation_helper(args, train_features, val_features, test_features)
+        train_features, val_features, test_features = transformation_helper(args=args, train_features=train_features, val_features=val_features, test_features=test_features)
 
         assert train_features.shape == (num_train_sub, num_d_measures, args.n_component)
         assert val_features.shape == (num_val_sub, num_d_measures, args.n_component)
@@ -213,7 +204,7 @@ def apply_decomposition(args, train_features, val_features, test_features):
         val_features = np.transpose(val_features, (0, 2, 1))
         test_features = np.transpose(test_features, (0, 2, 1))
 
-        train_features, val_features, test_features = transformation_helper(args, train_features, val_features, test_features)
+        train_features, val_features, test_features = transformation_helper(args=args, train_features=train_features, val_features=val_features, test_features=test_features)
 
         assert train_features.shape == (num_train_sub, num_d_measures, args.n_component)
         assert val_features.shape == (num_val_sub, num_d_measures, args.n_component)
@@ -224,7 +215,7 @@ def apply_decomposition(args, train_features, val_features, test_features):
         val_features = np.transpose(val_features, (0, 2, 1))
         test_features = np.transpose(test_features, (0, 2, 1))
 
-        train_features, val_features, test_features = transformation_helper(args, train_features, val_features, test_features)
+        train_features, val_features, test_features = transformation_helper(args=args, train_features=train_features, val_features=val_features, test_features=test_features)
         
         assert train_features.shape == (num_train_sub, args.n_component, args.n_component)
         assert val_features.shape == (num_val_sub, args.n_component, args.n_component)
@@ -235,11 +226,9 @@ def apply_decomposition(args, train_features, val_features, test_features):
 
 def transformation_helper(args, train_features, val_features, test_features):
     """helper function for scale and decompose data"""
-    train_features_list = []
-    val_features_list = []
-    test_features_list = []
-    # Iterate on the second last dimension (The transformed data should appear on the last dimension)
-    for idx in range(train_features.shape[1]):
+    train_features_list, val_features_list, test_features_list = [], [], []
+    # Iterate on the second last dimension (The transformed data should appear on the final dimension)
+    for idx in range(train_features.shape[-2]):
         train_features_ROI = train_features[:, idx, :]
         val_features_ROI = val_features[:, idx, :]
         test_features_ROI = test_features[:, idx, :]
@@ -254,6 +243,7 @@ def transformation_helper(args, train_features, val_features, test_features):
             umap_decomposer = umap.UMAP(n_components=args.n_component)
             transformer = umap_decomposer.fit(train_features_ROI)
 
+        # transform
         train_features_ROI = transformer.transform(train_features_ROI)
         val_features_ROI = transformer.transform(val_features_ROI)
         test_features_ROI = transformer.transform(test_features_ROI)
@@ -262,9 +252,9 @@ def transformation_helper(args, train_features, val_features, test_features):
         val_features_list.append(val_features_ROI)
         test_features_list.append(test_features_ROI)
     
-    train_features = np.stack(train_features_list, axis=1)
-    val_features = np.stack(val_features_list, axis=1)
-    test_features = np.stack(test_features_list, axis=1)
+    train_features = np.stack(train_features_list, axis=-2)
+    val_features = np.stack(val_features_list, axis=-2)
+    test_features = np.stack(test_features_list, axis=-2)
 
     return train_features, val_features, test_features
 
@@ -292,7 +282,7 @@ def paper_plots_derek(args, train_features, train_labels):
         plt.savefig(f"derek_paper_plots_dir/{args.keyword_dict['ROI'][tract_idx]}.jpg")
 
 
-def apply_smote(args, train_features, train_labels, idx):
+def apply_smote(args, train_features, train_labels, feature_name):
     """apply smogn to create synthetic examples"""
     df = pd.DataFrame(data=train_features, columns=[f'feature_{i}' for i in range(train_features.shape[-1])])
     df['label'] = train_labels
@@ -312,7 +302,6 @@ def apply_smote(args, train_features, train_labels, idx):
                                  [60, 1, 0]]
                 )
             done = True
-
         except ValueError:
             if n_tries < 999:
                 n_tries += 1
@@ -324,17 +313,11 @@ def apply_smote(args, train_features, train_labels, idx):
         data_smogn = data_smogn[data_smogn['label'] <= 70]
 
     # visualize modified distribution
-    if args.decomposition_axis == 'd_measures':
-        name = args.keyword_dict['ROI'][idx]
-    elif args.decomposition_axis == 'both':
-        name = f'Tract PC {idx}'
-    elif args.decomposition_axis == 'tracts':
-        name = args.keyword_dict['d_measures'][idx]
     plt.figure()
     sns.kdeplot(df['label'], label = "Original")
     sns.kdeplot(data_smogn['label'], label = "Modified")
     plt.legend()
-    plt.savefig(f"{args.result_dir}/smote_comparison/{name}_dist.png")
+    plt.savefig(f"{args.result_dir}/smote_comparison/{feature_name}_dist.png")
     plt.close()
 
     return data_smogn.iloc[:, :-1].values, data_smogn.iloc[:, -1].values
@@ -343,14 +326,14 @@ def apply_smote(args, train_features, train_labels, idx):
 def training_baseline_model(args, train_features, val_features, train_labels, val_labels):
     """
     Build a baseline tract-wise or measure-wise model using RandomizedSearch
-    After the baseline training, averaging top-performing models.
+    After the baseline training, averaging top-performing models based on val set
     Train_features shape: (subject, tracts or d_measures, n_PCs)
     
     When decomposition method is 'd_measures' and 'both', tract-wise baseline is trained.
     When decomposition method is 'tracts', d_measure-wise baseline is trained.
     """
     res_dict = dict()
-    for idx in range(train_features.shape[1]):
+    for idx in range(train_features.shape[-2]):
         if args.decomposition_axis == 'd_measures':
             feature_of_interest = args.keyword_dict['ROI'][idx]
         elif args.decomposition_axis == 'tracts':
@@ -366,8 +349,7 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
 
         # apply SMOTE 
         if args.smote:
-            train_features_ROI, train_labels_ROI = apply_smote(args=args, train_features=train_features_ROI, 
-                                                               train_labels=train_labels, idx=idx)
+            train_features_ROI, train_labels_ROI = apply_smote(args=args, train_features=train_features_ROI, train_labels=train_labels, feature_name=feature_of_interest)
         else:
             train_labels_ROI = train_labels
 
@@ -377,12 +359,11 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
         estimators_1 = [('svr', SVR())]
         stack_reg_1 = StackingRegressor(estimators=estimators_1,
                                         final_estimator=XGBRegressor())
-        # reg_configs = list(zip((svr, xgb, stack_reg), ('svr', 'xgb', 'stack_reg')))
         reg_configs = list(zip((svr, xgb, stack_reg_1), 
                                ('svr', 'xgb', 'stack_reg_1')))
-        args.model_list = []
         
-        scoring = "neg_root_mean_squared_error"
+        # scoring function
+        scoring = "neg_mean_absolute_error"
         # params dict
         params = dict()
         params['svr'] = {'kernel': ['linear', 'poly', 'rbf', 'sigmoid'], 
@@ -402,176 +383,168 @@ def training_baseline_model(args, train_features, val_features, train_labels, va
 
         # fit
         for reg, reg_name in reg_configs:
-            args.model_list.append(reg_name)
             grid = RandomizedSearchCV(estimator=reg, param_distributions=params[reg_name], cv=10, 
                                       scoring=scoring, refit=True, n_iter=300, n_jobs=-1)
             grid.fit(train_features_ROI, train_labels_ROI)
 
             # test best estimator
             logger.info(f'Mean CV score for {reg_name}: {-grid.best_score_}')
-            val_rmse = mean_squared_error(val_labels, grid.best_estimator_.predict(val_features_ROI), squared=False)
-            logger.info(f"Validation set RMSE for {reg_name}: {val_rmse}")
+            val_mae = mean_absolute_error(val_labels, grid.best_estimator_.predict(val_features_ROI))
+            logger.info(f"Val set MAE for {reg_name}: {val_mae}")
 
             # save results and models
-            res_dict[feature_of_interest][reg_name] = str(val_rmse)
+            res_dict[feature_of_interest][reg_name] = str(val_mae)
             trained_model_name = f"trained_{reg_name}_{feature_of_interest}.sav"              
             joblib.dump(grid.best_estimator_, os.path.join(args.baseline_model_dir, trained_model_name))
     
     with open(os.path.join(args.baseline_model_dir, 'baseline_model_performance.json'), 'w') as f:
         json.dump(res_dict, f)
 
-    args.model_list = list(set(args.model_list))
-    return args
 
-
-def load_trained_model_ensemble(args, train_features, val_features, test_features, val_labels, test_labels):
+def load_trained_model_ensemble(args, val_features, test_features, val_labels, test_labels, trained_model_list):
     """load trained models and create ensemble models"""
-    val_res_dict = dict()
-    test_res_dict = dict()
-    final_ensemble_dict = dict()
+    val_res_dict ,test_res_dict, top_prediction_dict = dict(), dict(), dict()
 
-    # load each trained model again and give predictions on test set again.
-    for reg_name in args.model_list:
-        val_res_dict[reg_name] = []
-        test_res_dict[reg_name] = []
-        for idx in range(train_features.shape[1]):
+    # load each trained model and give predictions on val and test set.
+    for reg_name in trained_model_list:
+        val_res_dict[reg_name] = list()
+        test_res_dict[reg_name] = list()
+        for idx in range(val_features.shape[-2]):
             val_features_ROI = val_features[:, idx, :] 
-            test_features_ROI = test_features[:, idx, :] 
-            if args.decomposition_axis == 'd_measures':
-                feature_name = args.keyword_dict['ROI'][idx]
-            elif args.decomposition_axis == 'both':
-                feature_name = f"Tract_PC_{idx}"
-            elif args.decomposition_axis == 'tracts':
-                feature_name = args.keyword_dict['d_measures'][idx]
-        
+            test_features_ROI = test_features[:, idx, :]
+
             # fetch the right model
+            feature_name = get_feature_name_helper_func(args=args, idx=idx) 
             trained_model_name = f'trained_{reg_name}_{feature_name}.sav'
             loaded_model = joblib.load(os.path.join(args.baseline_model_dir, trained_model_name))
+            
             val_preds = loaded_model.predict(val_features_ROI)
             test_preds = loaded_model.predict(test_features_ROI)
             val_res_dict[reg_name].append(val_preds)
             test_res_dict[reg_name].append(test_preds)
 
-        # select idx with best test loss and best features based on val results
-        smallest_idx = np.argpartition(np.array([mean_squared_error(val_labels, i, squared=False) for i in val_res_dict[reg_name]]), 3)[:3]
+        # select idx with top 3 best performance and best features based on val results
+        smallest_idx = np.argpartition(np.array([mean_absolute_error(val_labels, i) for i in val_res_dict[reg_name]]), 3)[:3]
         if args.decomposition_axis == 'd_measures':
             top_features = [args.keyword_dict['ROI'][i] for i in smallest_idx]
         elif args.decomposition_axis == 'tracts':
             top_features = [args.keyword_dict['d_measures'][i] for i in smallest_idx]
 
-        # ensemble model performance
+        # average predictions for all features or only top features
         average_res_val = np.stack(val_res_dict[reg_name], axis=-1).mean(axis=-1)
         top3_res_val = np.stack(val_res_dict[reg_name], axis=-1)[:, smallest_idx].mean(axis=-1)
         average_res_test = np.stack(test_res_dict[reg_name], axis=-1).mean(axis=-1)
         top3_res_test = np.stack(test_res_dict[reg_name], axis=-1)[:, smallest_idx].mean(axis=-1)
         # save prediction for current model
-        final_ensemble_dict[reg_name] = top3_res_val
+        top_prediction_dict[reg_name] = top3_res_val
 
-        # load previous result json and add ensemble performance
+        # load previous result json and add averaged performance
         with open(os.path.join(args.baseline_model_dir, 'baseline_model_performance.json'), 'r+') as f:
             res_dict = json.load(f)
-            res_dict[f'val_averaged_all_{reg_name}'] = str(mean_squared_error(val_labels, average_res_val, squared=False))
-            res_dict[f'val_averaged_top3_{reg_name}'] = str(mean_squared_error(val_labels, top3_res_val, squared=False))
-            res_dict[f'test_averaged_all_{reg_name}'] = str(mean_squared_error(test_labels, average_res_test, squared=False))
-            res_dict[f'test_averaged_top3_{reg_name}'] = str(mean_squared_error(test_labels, top3_res_test, squared=False))
+            res_dict[f'val_averaged_all_{reg_name}'] = str(mean_absolute_error(val_labels, average_res_val))
+            res_dict[f'val_averaged_top3_{reg_name}'] = str(mean_absolute_error(val_labels, top3_res_val))
+            res_dict[f'test_averaged_all_{reg_name}'] = str(mean_absolute_error(test_labels, average_res_test))
+            res_dict[f'test_averaged_top3_{reg_name}'] = str(mean_absolute_error(test_labels, top3_res_test))
             res_dict[f'top_features_{reg_name}'] = top_features
         with open(os.path.join(args.baseline_model_dir, 'baseline_model_performance.json'), 'w') as f:
             json.dump(res_dict, f)
 
     # ensemble predictions for all models
-    temp_list = [each for each in final_ensemble_dict.values()]
-    final_ensemble_dict['ensemble'] = np.stack(temp_list, axis=-1).mean(axis=-1)
+    total_pred_list = [each_prediction for each_prediction in top_prediction_dict.values()]
+    top_prediction_dict['ensemble'] = np.stack(total_pred_list, axis=-1).mean(axis=-1)
     with open(os.path.join(args.baseline_model_dir, 'baseline_model_performance.json'), 'r+') as f:
         res_dict = json.load(f)
-        res_dict[f'val_average_top3_ensemble'] = str(mean_squared_error(val_labels, final_ensemble_dict['ensemble'], squared=False))
+        res_dict[f'val_averaged_top3_ensemble'] = str(mean_absolute_error(val_labels, top_prediction_dict['ensemble']))
     with open(os.path.join(args.baseline_model_dir, 'baseline_model_performance.json'), 'w') as f:
         json.dump(res_dict, f)
 
     # add scatter plot for test set
-    if args.scatter_prediction_plot:
-        fig, ax = plt.subplots(figsize=(20, 20))
-        ax.plot([10, 70], [10, 70])
-        color = iter(plt.cm.rainbow(np.linspace(0, 1, 10)))
-        for key, value in final_ensemble_dict.items():
-            c = next(color)
-            ax.scatter(val_labels, value, s=200.0, c=c, label=key)
-        ax.set_title(f"Prediction scatter plot for all models", fontsize=40)
-        ax.set_xlabel('Age', fontsize=40)
-        ax.set_ylabel('Predictions',fontsize=40)
-        ax.legend(fontsize=40)
-        ax.tick_params(axis='both', which='major', labelsize=25)
-        plt.savefig(os.path.join(args.baseline_model_dir, f'scatter_test_performance.png'), bbox_inches='tight')
+    plot_predictions_scatter_helper_func(args=args, is_multi_runs=False, prediction_dict=top_prediction_dict, ground_truth=val_labels)
 
 
-def ensemble_model_from_multiple_runs(args, train_features, val_features, test_features, val_labels, test_labels):
-    val_res_dict = dict()
-    test_res_dict = dict()
-    final_ensemble_dict = dict()
-    trained_model_list = ['svr', 'xgb', 'stack_reg_1']
+def ensemble_model_from_multiple_runs(args, val_features, test_features, val_labels, test_labels, trained_model_list):
+    """This function is essentially the above function with another loop"""
+    val_res_dict ,test_res_dict, top_prediction_dict = dict(), dict(), dict()
+    num_runs = 3
 
-    # load each trained model again and give predictions on test set again.
+    # load each trained model and give predictions on val and test set.
     for reg_name in trained_model_list:
-        final_ensemble_dict[reg_name] = dict()
-        for run_idx in range(3):
-            val_res_dict[reg_name] = []
-            test_res_dict[reg_name] = []
-            for idx in range(train_features.shape[1]):
+        top_prediction_dict[reg_name] = dict()
+        for run_idx in range(num_runs):
+            val_res_dict[reg_name] = list()
+            test_res_dict[reg_name] = list()
+            for idx in range(val_features.shape[-2]):
                 val_features_ROI = val_features[:, idx, :] 
                 test_features_ROI = test_features[:, idx, :] 
-                if args.decomposition_axis == 'd_measures':
-                    feature_name = args.keyword_dict['ROI'][idx]
-                elif args.decomposition_axis == 'both':
-                    feature_name = f"Tract_PC_{idx}"
-                elif args.decomposition_axis == 'tracts':
-                    feature_name = args.keyword_dict['d_measures'][idx]
-        
+
                 # fetch the right model
+                feature_name = get_feature_name_helper_func(args=args, idx=idx) 
                 args.model_config = f'Decom_{args.decomposition}_{args.decomposition_axis}_' \
                         f'Smote_{args.smote}_{args.smote_threshold}_control_{args.smote_label_control}_' \
                         f'state_{args.random_state}_runtime_{run_idx}'
                 args.baseline_model_dir = f'{args.result_dir}/baseline_models/{args.model_config}'
                 trained_model_name = f'trained_{reg_name}_{feature_name}.sav'
                 loaded_model = joblib.load(os.path.join(args.baseline_model_dir, trained_model_name))
+                
                 val_preds = loaded_model.predict(val_features_ROI)
                 test_preds = loaded_model.predict(test_features_ROI)
                 val_res_dict[reg_name].append(val_preds)
                 test_res_dict[reg_name].append(test_preds)
 
-            # select idx with best test loss and best features based on val results
-            smallest_idx = np.argpartition(np.array([mean_squared_error(val_labels, i, squared=False) for i in val_res_dict[reg_name]]), 3)[:3]
-
+            # select idx with top 3 best performance based on val results
+            smallest_idx = np.argpartition(np.array([mean_absolute_error(val_labels, i) for i in val_res_dict[reg_name]]), 3)[:3]
             # save prediction for current model
-            final_ensemble_dict[reg_name][f'run{run_idx}'] = np.stack(val_res_dict[reg_name], axis=-1)[:, smallest_idx].mean(axis=-1)
+            top_prediction_dict[reg_name][f'run{run_idx}'] = np.stack(val_res_dict[reg_name], axis=-1)[:, smallest_idx].mean(axis=-1)
 
         # ensemble predictions for all runs
-        temp_list = [each for each in final_ensemble_dict[reg_name].values()]
-        final_ensemble_dict[reg_name][f'ensemble_runs_{reg_name}'] = np.stack(temp_list, axis=-1).mean(axis=-1)
+        total_pred_list = [each_prediction for each_prediction in top_prediction_dict[reg_name].values()]
+        top_prediction_dict[reg_name][f'ensemble_runs_{reg_name}'] = np.stack(total_pred_list, axis=-1).mean(axis=-1)
 
-    final_ensemble_dict['ensemble'] = np.stack([final_ensemble_dict[i][f'ensemble_runs_{i}'] for i in trained_model_list], axis=-1).mean(axis=-1)
+    top_prediction_dict['ensemble'] = np.stack([top_prediction_dict[each_model][f'ensemble_runs_{each_model}'] for each_model in trained_model_list], axis=-1).mean(axis=-1)
 
     args.save_ensemble_dir = '/Users/hanzhiwang/tract_full_res/tracts/ensemble_runs_results'
     res_dict = dict()
     for reg_name in trained_model_list:
-        res_dict[f'ensemble_runs_{reg_name}'] = str(mean_squared_error(val_labels, final_ensemble_dict[reg_name][f'ensemble_runs_{reg_name}'], squared=False))
-    res_dict[f'ensemble_runs_ensemble'] = str(mean_squared_error(val_labels, final_ensemble_dict['ensemble'], squared=False))
+        res_dict[f'ensemble_runs_{reg_name}'] = str(mean_absolute_error(val_labels, top_prediction_dict[reg_name][f'ensemble_runs_{reg_name}']))
+    res_dict[f'ensemble_runs_ensemble'] = str(mean_absolute_error(val_labels, top_prediction_dict['ensemble']))
     with open(os.path.join(args.save_ensemble_dir, f'ensemble_baseline_model_performance_{args.random_state}.json'), 'w') as f:
         json.dump(res_dict, f)
 
     # add scatter plot for test set
-    if args.scatter_prediction_plot:
-        temp_dict = dict()
-        for each_model in trained_model_list:
-            temp_dict[f'ensemble_{each_model}'] = final_ensemble_dict[f'{each_model}'][f'ensemble_runs_{each_model}']
-        temp_dict['ensemble_ensemble'] = final_ensemble_dict['ensemble']
-        fig, ax = plt.subplots(figsize=(20, 20))
-        ax.plot([10, 70], [10, 70])
-        color = iter(plt.cm.rainbow(np.linspace(0, 1, 10)))
-        for key, value in temp_dict.items():
-            c = next(color)
-            ax.scatter(val_labels, value, s=200.0, c=c, label=key)
-        ax.set_title(f"Prediction scatter plot for all models", fontsize=40)
-        ax.set_xlabel('Age', fontsize=40)
-        ax.set_ylabel('Predictions',fontsize=40)
-        ax.legend(fontsize=40)
-        ax.tick_params(axis='both', which='major', labelsize=25)
+    temp_dict = dict()
+    for each_model in trained_model_list:
+        temp_dict[f'ensemble_{each_model}'] = top_prediction_dict[f'{each_model}'][f'ensemble_runs_{each_model}']
+    temp_dict['ensemble_ensemble'] = top_prediction_dict['ensemble']
+    converted_dict = {key: value.tolist() for key, value in temp_dict.items()}
+    with open(os.path.join(args.save_ensemble_dir, f'ensemble_model_predictions_{args.random_state}.json'), 'w') as f:
+        json.dump(converted_dict, f)
+    plot_predictions_scatter_helper_func(args=args, is_multi_runs=True, prediction_dict=temp_dict, ground_truth=val_labels)
+
+
+def get_feature_name_helper_func(args, idx):
+    if args.decomposition_axis == 'd_measures':
+        feature_name = args.keyword_dict['ROI'][idx]
+    elif args.decomposition_axis == 'both':
+        feature_name = f"Tract_PC_{idx}"
+    elif args.decomposition_axis == 'tracts':
+        feature_name = args.keyword_dict['d_measures'][idx]
+
+    return feature_name
+
+
+def plot_predictions_scatter_helper_func(args, is_multi_runs, prediction_dict, ground_truth):
+    fig, ax = plt.subplots(figsize=(20, 20))
+    ax.plot([10, 70], [10, 70])
+    color = iter(plt.cm.rainbow(np.linspace(0, 1, 5)))
+    for key, value in prediction_dict.items():
+        c = next(color)
+        ax.scatter(ground_truth, value, s=200.0, c=c, label=key)
+    ax.set_title(f"Prediction scatter plot for all models", fontsize=40)
+    ax.set_xlabel('Age', fontsize=40)
+    ax.set_ylabel('Predictions',fontsize=40)
+    ax.legend(fontsize=40)
+    ax.tick_params(axis='both', which='major', labelsize=25)
+    if is_multi_runs:
         plt.savefig(os.path.join(args.save_ensemble_dir, f'ensemble_scatter_test_performance_{args.random_state}.png'), bbox_inches='tight')
+    else:
+        plt.savefig(os.path.join(args.baseline_model_dir, f'scatter_test_performance.png'), bbox_inches='tight')
