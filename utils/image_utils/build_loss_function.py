@@ -205,8 +205,7 @@ class SkewedLossFunction_OneSide(nn.Module):
                 device = 'cpu'
             return SkewedLossFunction_OneSide.mae(y_pred, y_true) * \
                 torch.exp(torch.max(torch.sign(y_true - y_pred) * torch.sign(lamda(y_true)),
-                                    torch.tensor([0. for _ in range(len(y_pred))]).to(device).view(-1, 1)) *
-                          torch.abs(lamda(y_true)))
+                                    torch.tensor([0. for _ in range(len(y_pred))]).to(device).view(-1, 1)) * torch.abs(lamda(y_true)))
         return mae_skewed
 
     @staticmethod
@@ -231,7 +230,7 @@ class SkewedLossFunction_OneSide(nn.Module):
                 device = 'cpu'
             return SkewedLossFunction_OneSide.epsilon_insensitive(y_pred, y_true) * \
                 torch.exp(torch.max(torch.sign(y_true - y_pred) * torch.sign(lamda(y_true)),
-                                    torch.tensor([0. for _ in range(len(y_pred))]).to(device).view(-1, 1)) *
+                                    torch.tensor([0. for _ in range(len(y_pred))]).to(device).view(-1, 1)) * 
                           torch.abs(lamda(y_true)))
         return svr_skewed
 

@@ -37,18 +37,17 @@ def build_loader(args, dataset_train, dataset_val, dataset_test):
 def build_optimizer(model, train_loader, args):
     """build optimizer and learning rate scheduler"""
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
-    
+
     args.max_train_steps = args.num_train_epochs * len(train_loader)
     lr_scheduler = get_scheduler(name=args.lr_scheduler_type, optimizer=optimizer,
-        num_warmup_steps=args.num_warmup_steps, num_training_steps=args.max_train_steps)
+                                 num_warmup_steps=args.num_warmup_steps, num_training_steps=args.max_train_steps)
     # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
     return optimizer, lr_scheduler
 
 
 # ------------------- build main training loop ---------------------
-def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer, 
-        lr_scheduler, m, loss_fn_train):
+def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer, lr_scheduler, m, loss_fn_train):
     """train/val/test for pytorch loop"""
     # variable for compact dynamic lambda
     lambda_correlation_list = []
@@ -71,7 +70,7 @@ def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer
             m.display_epoch_results()
 
             # dynamic lambda algorithm
-            if epoch in range(args.update_lambda_start_epoch, args.num_train_epochs+1, args.compact_update_interval) \
+            if epoch in range(args.update_lambda_start_epoch, args.num_train_epochs + 1, args.compact_update_interval) \
                     and args.compact_dynamic:
                 args, lambda_correlation_list = update_lamda_max(args, m, epoch, lambda_correlation_list)
                 # initialize new skewed loss function based on new lamda_max
@@ -92,13 +91,13 @@ def train_val_test(args, train_loader, val_loader, test_loader, model, optimizer
                         logger.info(f'Lower validation loss found at epoch {m.epoch_num_count}')
                         best_loss = m.epoch_stats['val_mae']
                         torch.save(model.state_dict(), os.path.join(args.out_dir, "Best_Model.pt"))
-            
+
     model = evaluate_val_set_performance(args, val_loader, m)
     model = evaluate_test_set_performance(args, test_loader, m)
 
     m.end_run()
     # save stats
-    m.save(os.path.join(args.out_dir, f'runtime_stats'))
+    m.save(os.path.join(args.out_dir, 'runtime_stats'))
 
     # apply two-stage correction approach when using normal loss
     if args.two_stage_correction:
@@ -133,7 +132,7 @@ def train(args, model, m, train_loader, optimizer, lr_scheduler, loss_fn_train):
 
         # track train loss
         m.track_train_loss(loss=loss)
-    
+
     for metric in all_metric_type:
         if metric in ["recall", "precision", "f1"]:
             all_metrics_results.update(all_metrics[metric].compute(average='weighted'))
@@ -168,7 +167,7 @@ def val(args, model, m, val_loader):
             all_metrics_results.update(all_metrics[metric].compute(average='weighted'))
         else:
             all_metrics_results.update(all_metrics[metric].compute())
-    
+
     # track val metrics
     m.collect_val_metrics(metric_results=all_metrics_results)
 
@@ -197,7 +196,7 @@ def test(args, model, m, test_loader):
             all_metrics_results.update(all_metrics[metric].compute(average='weighted'))
         else:
             all_metrics_results.update(all_metrics[metric].compute())
-    
+
     # track val metrics
     m.collect_test_metrics(metric_results=all_metrics_results)
 
@@ -230,7 +229,7 @@ def evaluate_val_set_performance(args, val_loader, m):
 
             preds_list.append(outputs)
             labels_list.append(batch['label'])
-        
+
         # preds and labels will have shape (*, 1)
         preds_tensor = torch.cat(preds_list, 0)
         labels_tensor = torch.cat(labels_list, 0)
@@ -276,7 +275,7 @@ def evaluate_test_set_performance(args, test_loader, m):
 
             preds_list.append(outputs)
             labels_list.append(batch['label'])
-        
+
         # preds and labels will have shape (*, 1)
         preds_tensor = torch.cat(preds_list, 0)
         labels_tensor = torch.cat(labels_list, 0)
@@ -286,7 +285,7 @@ def evaluate_test_set_performance(args, test_loader, m):
             all_metrics_results.update(all_metrics[metric].compute(average='weighted'))
         else:
             all_metrics_results.update(all_metrics[metric].compute())
-    
+
     # track test metrics
     # m.collect_test_metrics(metric_results=all_metrics_results)
 

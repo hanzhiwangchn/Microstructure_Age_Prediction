@@ -27,7 +27,7 @@ def prep_wand_age(save_dir_name, file_name):
     df.to_csv(os.path.join(save_dir_name, 'wand_age_clean.csv'))
 
     # extract id and age to json
-    age_dict = dict(sorted(dict(zip(df['subject_id'],df['subject_age'])).items()))
+    age_dict = dict(sorted(dict(zip(df['subject_id'], df['subject_age'])).items()))
     with open(os.path.join(save_dir_name, 'wand_age.json'), 'w') as f:
         json.dump(age_dict, f)
 
@@ -103,18 +103,18 @@ def prep_all_wand_images(args):
         # all modalities are of the same length as .npy file
         for modality in image_modality_dir_dict.keys():
             id_list_available = unzip_wand_image(image_modality_dir_dict=image_modality_dir_dict, 
-                image_modality_fullname_dict=image_modality_fullname_dict, 
-                image_modality=modality, output_image_dir=output_image_dir_dict[args.option], 
-                id_list_available=id_list_available)
+                                                 image_modality_fullname_dict=image_modality_fullname_dict, 
+                                                 image_modality=modality, output_image_dir=output_image_dir_dict[args.option], 
+                                                 id_list_available=id_list_available)
         
         # After unzipping .gz file and updating id_list_available, save .nii to .npy
         for modality in image_modality_dir_dict.keys():
             save_wand_image_to_npy(image_modality=modality, wand_id_age_dict=wand_id_age_dict, 
-                output_image_dir=output_image_dir_dict[args.option], id_list_available=id_list_available)
+                                   output_image_dir=output_image_dir_dict[args.option], id_list_available=id_list_available)
         
         # ordering only matters in compact version
         id_ordering_check(image_modality_dir_dict=image_modality_dir_dict, 
-            output_image_dir=output_image_dir_dict[args.option])
+                          output_image_dir=output_image_dir_dict[args.option])
 
     # full version 
     elif args.option == 'full': 
@@ -131,16 +131,15 @@ def prep_all_wand_images(args):
 
             # ensure all ids should have corresponding file
             id_list_available = unzip_wand_image(image_modality_dir_dict=image_modality_dir_dict, 
-                image_modality_fullname_dict=image_modality_fullname_dict, 
-                image_modality=modality, output_image_dir=output_image_dir_dict[args.option], 
-                id_list_available=id_list_available)
+                                                 image_modality_fullname_dict=image_modality_fullname_dict, 
+                                                 image_modality=modality, output_image_dir=output_image_dir_dict[args.option], 
+                                                 id_list_available=id_list_available)
 
             save_wand_image_to_npy(image_modality=modality, wand_id_age_dict=wand_id_age_dict, 
-                output_image_dir=output_image_dir_dict[args.option], id_list_available=id_list_available)
+                                   output_image_dir=output_image_dir_dict[args.option], id_list_available=id_list_available)
 
 
-def unzip_wand_image(image_modality_dir_dict, image_modality_fullname_dict, image_modality, 
-        output_image_dir, id_list_available):
+def unzip_wand_image(image_modality_dir_dict, image_modality_fullname_dict, image_modality, output_image_dir, id_list_available):
     # unzip matched images to .nii format
     full_image_dir = os.path.join(WAND_IMAGE_DIR, image_modality_dir_dict[image_modality])
     os.makedirs(os.path.join(output_image_dir, image_modality), exist_ok=True)
@@ -152,15 +151,13 @@ def unzip_wand_image(image_modality_dir_dict, image_modality_fullname_dict, imag
         try:
             # NOTE ICVF_NODDI file does not have sub-id prefix in the beginning
             if image_modality == 'ICVF_NODDI':
-                with gzip.open(
-                    os.path.join(full_image_dir, subject_folder, f'{image_modality_fullname_dict[image_modality]}.gz'), 'rb') as f_in:
-                        with open(os.path.join(output_image_dir, image_modality, f"{subject_folder}_{image_modality_fullname_dict[image_modality]}"), 'wb') as f_out:
-                            shutil.copyfileobj(f_in, f_out)
+                with gzip.open(os.path.join(full_image_dir, subject_folder, f'{image_modality_fullname_dict[image_modality]}.gz'), 'rb') as f_in:
+                    with open(os.path.join(output_image_dir, image_modality, f"{subject_folder}_{image_modality_fullname_dict[image_modality]}"), 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
             else:
-                with gzip.open(
-                    os.path.join(full_image_dir, subject_folder, f'{subject_folder}_{image_modality_fullname_dict[image_modality]}.gz'), 'rb') as f_in:
-                        with open(os.path.join(output_image_dir, image_modality, f"{subject_folder}_{image_modality_fullname_dict[image_modality]}"), 'wb') as f_out:
-                            shutil.copyfileobj(f_in, f_out)
+                with gzip.open(os.path.join(full_image_dir, subject_folder, f'{subject_folder}_{image_modality_fullname_dict[image_modality]}.gz'), 'rb') as f_in:
+                    with open(os.path.join(output_image_dir, image_modality, f"{subject_folder}_{image_modality_fullname_dict[image_modality]}"), 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
         except:
             id_list_with_missing_files.append(i)
     logger.info(f'{image_modality} has {len(id_list_with_missing_files)} missing files: {id_list_with_missing_files}')
@@ -194,7 +191,7 @@ def save_wand_image_to_npy(image_modality, wand_id_age_dict, output_image_dir, i
     assert wand_id_age_dict[id_array[rnd_check]] == age_array[rnd_check]
 
     if image_modality == 'ICVF_NODDI':
-         img_array = np.squeeze(img_array, axis=-1)
+        img_array = np.squeeze(img_array, axis=-1)
 
     logger.info(f'{image_modality} images has shape {img_array.shape}; age has shape {age_array.shape}')
     np.save(os.path.join(output_image_dir, image_modality, f'subject_id_{image_modality}.npy'), id_array)
@@ -247,7 +244,7 @@ def prep_tract_data(args):
     common_id = sorted(['sub-' + i for i in common_id])
 
     # save selected subject id to txt file
-    file_path ='wand_tract_training_ids_sorted.txt'
+    file_path = 'wand_tract_training_ids_sorted.txt'
     with open(file_path, 'w') as file:
         for item in common_id:
             file.write("%s\n" % item)
@@ -263,7 +260,7 @@ def prep_tract_data(args):
         full_dataset.append(tract_values)
     
     full_dataset = np.stack(full_dataset, axis=0)
-    full_dataset = np.transpose(full_dataset, (1,2,0))
+    full_dataset = np.transpose(full_dataset, (1, 2, 0))
     # save tract array to file
     np.save(os.path.join(args.wand_tract_data_dir, 'tract_value_compact.npy'), full_dataset)
 

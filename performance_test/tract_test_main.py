@@ -11,11 +11,12 @@ result_dir_prefix = '/Users/hanzhiwang/tract_full_res/tracts'
 models = ['svr', 'xgb', 'stack_reg_1', 'ensemble']
 runtime = 3
 
-model_setting_1 = f'Decom_False_d_measures_Smote_True_0.5_control_True'
-model_setting_2 = f'Decom_True_d_measures_Smote_True_0.5_control_True'
+model_setting_1 = 'Decom_False_d_measures_Smote_True_0.5_control_True'
+model_setting_2 = 'Decom_True_d_measures_Smote_True_0.5_control_True'
 
 model_settings = [model_setting_1, ]
-selected_state_list = [0,1,2,3,4,5,6,7,10,12,13,15,16,17,18,20,22,23,26,27]
+selected_state_list = [0, 1, 2, 3, 4, 5, 6, 7, 10, 12, 13, 15, 
+                       16, 17, 18, 20, 22, 23, 26, 27]
 
 
 def model_performance_single_run():
@@ -32,7 +33,7 @@ def model_performance_single_run():
                 res_folder_name = f'{each_model_setting}_state_{rnd_state}_runtime_{runtime_idx}'
                 with open(os.path.join(result_dir_prefix, 'baseline_models', res_folder_name, 'baseline_model_performance.json'), 'r') as f:
                     res_dict = json.load(f)
-                temp_list.append(float(res_dict[f'val_averaged_top3_ensemble']))
+                temp_list.append(float(res_dict['val_averaged_top3_ensemble']))
             # total_res_dict[each_model_setting][f'state_{rnd_state}'] = np.mean(np.array(temp_list))
             total_res_dict[each_model_setting][f'state_{rnd_state}'] = temp_list
     
@@ -133,8 +134,6 @@ def tract_model_best_performing_regions():
         else:
             plt.axvline(x=10, color='red', linestyle='--')
         plt.savefig(f'{key}_importance_features.jpg')
-
-
 
 if __name__ == '__main__':
     model_performance_multiple_run()

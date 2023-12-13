@@ -12,7 +12,8 @@ import matplotlib.pyplot as plt
 image_res_dir_prefix = '/Users/hanzhiwang/image_full_res/images'
 model_names = ['densenet', 'resnet']
 
-random_state = [0,1,2,3,4,5,6,7,10,12,13,15,16,17,18,20,22,23,26,27]
+random_state = [0, 1, 2, 3, 4, 5, 6, 7, 10, 12, 13, 15, 
+                16, 17, 18, 20, 22, 23, 26, 27]
 # random_state = [0,1]
 runs = 3
 
@@ -62,10 +63,10 @@ def test_multi_model():
     print(image_results_dict_reshape)
     for each_state in random_state:
         plot_predictions_scatter_helper_func(image_results_dict_reshape[f'state_{each_state}'], 
-                                                 ground_truth_dict[f'state_{each_state}'], 
-                                                 each_state, 'multi')    
+                                             ground_truth_dict[f'state_{each_state}'], 
+                                             each_state, 'multi')    
     image_score_dict = dict()
-    new_model_names = ['densenet', 'resnet','ensemble']
+    new_model_names = ['densenet', 'resnet', 'ensemble']
     for each_model in new_model_names:
         image_score_dict[f'ensemble_{each_model}'] = list()
         for each_state in random_state:
@@ -98,7 +99,7 @@ def test_single_model():
             image_results_dict_reshape[f'state_{each_state}'][f'run_{run_idx}']['ensemble'] = np.array(temp).mean(axis=0).tolist()
 
     image_results_dict_reshape_score = dict()
-    new_model_names = ['densenet', 'resnet','ensemble']
+    new_model_names = ['densenet', 'resnet', 'ensemble']
     for each_model in new_model_names:
         image_results_dict_reshape_score[each_model] = dict()
         for each_state in random_state:
@@ -140,13 +141,13 @@ def plot_predictions_scatter_helper_func(prediction_dict, ground_truth, state, r
     for key, value in prediction_dict.items():
         c = next(color)
         ax.scatter(ground_truth, value, s=200.0, c=c, label=key)
-    ax.set_title(f"Prediction scatter plot for all models", fontsize=40)
+    ax.set_title("Prediction scatter plot for all models", fontsize=40)
     ax.set_xlabel('Age', fontsize=40)
-    ax.set_ylabel('Predictions',fontsize=40)
+    ax.set_ylabel('Predictions', fontsize=40)
     ax.legend(fontsize=40)
     ax.tick_params(axis='both', which='major', labelsize=25)
-    plt.savefig(os.path.join('/Users/hanzhiwang/PycharmProjects/Microstructure_Age_Prediction/temp', f'scatter_test_performance_{state}_{run}.png'), bbox_inches='tight')
-
+    plt.savefig(os.path.join('/Users/hanzhiwang/PycharmProjects/Microstructure_Age_Prediction/temp', f'scatter_test_performance_{state}_{run}.png'), 
+                bbox_inches='tight')
 
 if __name__ == '__main__':
     test_multi_model()

@@ -16,7 +16,7 @@ def build_model(args):
         model = ResNet(input_size=args.input_shape)
 
     if torch.cuda.device_count() > 1:
-        model= torch.nn.DataParallel(model, list(range(torch.cuda.device_count())))
+        model = torch.nn.DataParallel(model, list(range(torch.cuda.device_count())))
     model.to(args.device)
 
     # parameter initialization
@@ -28,7 +28,7 @@ def build_model(args):
                 torch.nn.init.kaiming_normal_(m.weight.data)
     if args.params_init != 'default':
         model.apply(weights_init)
-        
+
     return model
 
 
@@ -41,7 +41,7 @@ def build_model_test(args):
 
     model.load_state_dict(state_dict=torch.load(os.path.join(args.out_dir, "Best_Model.pt")))
     logger.info('Best Model loaded for testing')
-        
+
     return model
 
 
@@ -59,7 +59,7 @@ def build_model_stacking(args):
 
 # ------------------- Scratch DenseNet from MONAI ---------------------
 def build_densenet_monai():
-    model = monai.networks.nets.DenseNet(spatial_dims=3, in_channels=1, out_channels=1, 
+    model = monai.networks.nets.DenseNet(spatial_dims=3, in_channels=1, out_channels=1,
                                          init_features=16, growth_rate=8, block_config=(4, 8, 12, 10))
     return model
 
@@ -76,7 +76,7 @@ class ResNetBlock(nn.Module):
 
         layer_in = input_size if input_size is not None else 2 ** (block_number + 1)
         layer_out = 2 ** (block_number + 2)
-        if layer_out >=64:
+        if layer_out >= 64:
             layer_out = 64
 
         self.conv1 = nn.Conv3d(layer_in, layer_out, kernel_size=3, stride=1, padding=1, bias=False)

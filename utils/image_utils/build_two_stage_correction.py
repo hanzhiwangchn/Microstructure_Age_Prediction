@@ -23,7 +23,7 @@ def apply_two_stage_correction(args, val_loader, model):
 
             val_preds_list.append(outputs)
             val_labels_list.append(batch['label'])
-        
+
         # preds and labels will have shape (*, 1)
         val_preds_tensor = torch.cat(val_preds_list, 0)
         val_labels_tensor = torch.cat(val_labels_list, 0)
@@ -55,5 +55,5 @@ def two_stage_linear_fit(df_val):
 
 def two_steps_bias_correction(slope, bias, df_test, args):
     """two-stage approach: correction on predicted value to get unbiased prediction"""
-    df_test['predicted_value'] = df_test['predicted_value'].apply(lambda x: (x-bias) / slope)
+    df_test['predicted_value'] = df_test['predicted_value'].apply(lambda x: (x - bias) / slope)
     df_test.to_csv(os.path.join(args.out_dir, "corrected_performance_summary.csv"))

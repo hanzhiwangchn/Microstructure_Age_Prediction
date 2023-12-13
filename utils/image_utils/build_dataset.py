@@ -60,7 +60,7 @@ def build_dataset_wand_micro(args):
     # NOTE: StratifiedShuffleSplit returns RangeIndex instead of the Original Index of the new DataFrame
     assert sorted(train_index.tolist() + val_index.tolist()) == list(range(len(stratified_train_val_set.index)))
     assert sorted(train_index.tolist() + val_index.tolist()) != sorted(list(stratified_train_val_set.index))
-    
+
     # get the correct index of original DataFrame for train/val set
     train_index = train_val_index[train_index]
     val_index = train_val_index[val_index]
@@ -85,14 +85,15 @@ def build_dataset_wand_micro(args):
                 f'validation labels shape: {val_labels.shape}, testing labels shape: {test_labels.shape}')
 
     # Pytorch Dataset for train set. Apply data augmentation if needed using "torchio"
-    dataset_train = TrainDataset(images=train_images, labels=train_labels, 
-        transform=transforms.Compose([ToTensor_MRI()]), medical_augment=medical_augmentation_pt)
+    dataset_train = TrainDataset(images=train_images, labels=train_labels,
+                                 transform=transforms.Compose([ToTensor_MRI()]),
+                                 medical_augment=medical_augmentation_pt)
     del train_images, train_labels
 
     # Pytorch Dataset for validation set
-    dataset_val = ValDataset(images=validation_images, labels=validation_labels,
-                                           transform=transforms.Compose([ToTensor_MRI()]))
-    del validation_images, validation_labels
+    dataset_val = ValDataset(images=val_images, labels=val_labels,
+                             transform=transforms.Compose([ToTensor_MRI()]))
+    del val_images, val_labels
 
     # Pytorch Dataset for test set
     dataset_test = TestDataset(images=test_images, labels=test_labels,
@@ -106,8 +107,8 @@ def build_dataset_wand_micro(args):
 def build_dataset_wand_t1w(args):
     """load t1w data"""
     # load data(in .npy format)
-    images = np.load(os.path.join(args.data_dir, f'wand_t1w_cropped.npy'))
-    age = np.load(os.path.join(args.data_dir, f'tract_age_compact.npy'))
+    images = np.load(os.path.join(args.data_dir, 'wand_t1w_cropped.npy'))
+    age = np.load(os.path.join(args.data_dir, 'tract_age_compact.npy'))
 
     df = pd.DataFrame(data=age, columns=['Age'])
     # retrieve the minimum, maximum and median age for skewed loss
@@ -137,7 +138,7 @@ def build_dataset_wand_t1w(args):
     # NOTE: StratifiedShuffleSplit returns RangeIndex instead of the Original Index of the new DataFrame
     assert sorted(train_index.tolist() + val_index.tolist()) == list(range(len(stratified_train_val_set.index)))
     assert sorted(train_index.tolist() + val_index.tolist()) != sorted(list(stratified_train_val_set.index))
-    
+
     # get the correct index of original DataFrame for train/val set
     train_index = train_val_index[train_index]
     val_index = train_val_index[val_index]
@@ -162,13 +163,14 @@ def build_dataset_wand_t1w(args):
                 f'validation labels shape: {val_labels.shape}, testing labels shape: {test_labels.shape}')
 
     # Pytorch Dataset for train set. Apply data augmentation if needed using "torchio"
-    dataset_train = TrainDataset(images=train_images, labels=train_labels, 
-        transform=transforms.Compose([ToTensor_MRI()]), medical_augment=medical_augmentation_pt)
+    dataset_train = TrainDataset(images=train_images, labels=train_labels,
+                                 transform=transforms.Compose([ToTensor_MRI()]),
+                                 medical_augment=medical_augmentation_pt)
     del train_images, train_labels
 
     # Pytorch Dataset for validation set
     dataset_val = ValDataset(images=val_images, labels=val_labels,
-                                           transform=transforms.Compose([ToTensor_MRI()]))
+                             transform=transforms.Compose([ToTensor_MRI()]))
     del val_images, val_labels
 
     # Pytorch Dataset for test set

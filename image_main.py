@@ -45,8 +45,8 @@ def build_parser_image_training():
     # frequently used settings
     parser.add_argument('--dataset', type=str, default='wand_t1w', choices=['wand_micro', 'wand_t1w'],
                         help='specify which dataset to use')
-    parser.add_argument('--image-modality', type=str, default='t1w', 
-                        choices=['KFA_DKI', 'ICVF_NODDI', 'FA_CHARMED', 'RD_CHARMED', 'MD_CHARMED', 
+    parser.add_argument('--image-modality', type=str, default='t1w',
+                        choices=['KFA_DKI', 'ICVF_NODDI', 'FA_CHARMED', 'RD_CHARMED', 'MD_CHARMED',
                                  'AD_CHARMED', 'FRtot_CHARMED', 'MWF_mcDESPOT', 't1w'],
                         help='specify which dataset to use')
     parser.add_argument('--random-state', type=int, default=0,
@@ -97,9 +97,9 @@ def baseline_model_training_images():
     loss_fn_train, _, _ = build_loss_function(args=args)
 
     # build dataloader
-    train_loader, val_loader, test_loader = build_loader(args=args, dataset_train=dataset_train, 
-        dataset_val=dataset_val, dataset_test=dataset_test)
-    
+    train_loader, val_loader, test_loader = build_loader(args=args, dataset_train=dataset_train,
+                                                         dataset_val=dataset_val, dataset_test=dataset_test)
+
     # build optimizer
     optimizer, lr_scheduler = build_optimizer(model=model, train_loader=train_loader, args=args)
 
@@ -108,8 +108,8 @@ def baseline_model_training_images():
     m.begin_run(train_loader=train_loader, val_loader=val_loader, test_loader=test_loader)
 
     # train and evaluate
-    train_val_test(args=args, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader, 
-        model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, m=m, loss_fn_train=loss_fn_train)
+    train_val_test(args=args, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader,
+                   model=model, optimizer=optimizer, lr_scheduler=lr_scheduler, m=m, loss_fn_train=loss_fn_train)
 
     logger.info('Model finished!')
 

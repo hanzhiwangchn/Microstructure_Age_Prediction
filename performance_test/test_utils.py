@@ -137,4 +137,3 @@ def corr_mean_std(corr_list):
     assert means.shape == (len(LOSS_TYPE_LIST), )
     for i in range(len(LOSS_TYPE_LIST)):
         print(f'{LOSS_TYPE_LIST[i]}: {means[i]}, {stds[i]}')
-
