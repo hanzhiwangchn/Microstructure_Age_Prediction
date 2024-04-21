@@ -41,9 +41,9 @@ def build_parser_tract_training():
     parser.add_argument('--eda', action='store_true', default=False)
     parser.add_argument('--derek-paper-plots', action='store_true', default=False)
     # default parameters
-    parser.add_argument('--baseline-model-training', action='store_true', default=True)
+    parser.add_argument('--baseline-model-training', action='store_true', default=False)
     # test parameters
-    parser.add_argument('--multi-runs-ensemble', action='store_true', default=False,
+    parser.add_argument('--multi-runs-ensemble', action='store_true', default=True,
                         help='ensemble same model from multiple runs for testing')
     # run time parameter
     parser.add_argument('--runtime', type=int, default=0, help='rum time indicator')

@@ -125,15 +125,21 @@ def tract_model_best_performing_regions():
         # Plotting the histogram
         plt.figure(figsize=(10, 10))
         plt.barh(x_labels, frequencies, color='skyblue')
-        plt.ylabel('Tract regions')
-        plt.xlabel('Frequency')
-        plt.title(f'Important features Histogram {key}')
+        plt.ylabel('Tracts', fontsize=20)
+        plt.xlabel('Frequency', fontsize=20)
+        if key == 'total':
+            plt.title(f'Histogram of Prioritized Tracts', fontsize=30)
+        else:
+            plt.title(f'Histogram of Prioritized Tracts - {key}', fontsize=30)
         plt.yticks(list(sorted_counter.keys()))
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=14)
         if key == 'total':
             plt.axvline(x=30, color='red', linestyle='--')
         else:
             plt.axvline(x=10, color='red', linestyle='--')
-        plt.savefig(f'{key}_importance_features.jpg')
+        plt.savefig(f'temp1/{key}_importance_features.jpg', bbox_inches='tight')
 
 if __name__ == '__main__':
-    model_performance_multiple_run()
+    tract_model_best_performing_regions()
+    # model_performance_multiple_run()

@@ -28,3 +28,28 @@ import seaborn as sns
 # plt.savefig('original_HR.jpg', bbox_inches='tight')
 # plt.imshow(np.rot90(image[:, 128, :]), cmap='gray')
 # plt.savefig('synthetic_LR.jpg', bbox_inches='tight')
+
+a = np.load('Datasets/tract_data/tract_age_compact.npy')
+print(a)
+print(len(a))
+print(a.mean())
+print(a.std())
+print(a.min())
+print(a.max())
+
+# Generate some random data for demonstration
+
+# Create a histogram
+plt.hist(a, bins=30, color='blue', alpha=0.5)
+
+# Add labels and title
+plt.xlabel('Age', fontsize=20)
+plt.ylabel('Frequency', fontsize=20)
+plt.title('Age Distribution', fontsize=20)
+
+# Increase the size of the axis labels
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
+
+# Show the plot
+plt.savefig('1.png', bbox_inches='tight')

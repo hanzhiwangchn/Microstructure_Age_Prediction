@@ -43,23 +43,27 @@ def load_results():
 def test_multi_model():
     """calculate MAE for single model and ensemble model"""
     image_results_dict, ground_truth_dict = load_results()
+
+    image_results_dict['SFCN'] = image_results_dict['resnet']
+    image_results_dict['DenseNet'] = image_results_dict['densenet']
+    model_names = ['DenseNet', 'SFCN']
     # print(image_results_dict)
 
     image_results_dict_reshape = dict()
     for each_state in random_state:
         image_results_dict_reshape[f'state_{each_state}'] = dict()
-        image_results_dict_reshape[f'state_{each_state}']['ensemble_ensemble'] = list()
+        image_results_dict_reshape[f'state_{each_state}']['Averaged model ensemble'] = list()
         for each_model in model_names:
-            image_results_dict_reshape[f'state_{each_state}'][f'ensemble_{each_model}'] = list()
+            image_results_dict_reshape[f'state_{each_state}'][f'{each_model} ensemble'] = list()
             total_pred = list()
             for i in range(runs):
                 predictions = image_results_dict[each_model][f'state_{each_state}'][i]
                 total_pred.append(predictions)
             total_pred_averaged = np.stack(total_pred, axis=-1).mean(axis=-1).tolist()
-            image_results_dict_reshape[f'state_{each_state}'][f'ensemble_{each_model}'].extend(total_pred_averaged)
-            image_results_dict_reshape[f'state_{each_state}']['ensemble_ensemble'].append(total_pred_averaged)
-        image_results_dict_reshape[f'state_{each_state}']['ensemble_ensemble'] = \
-            np.array(image_results_dict_reshape[f'state_{each_state}']['ensemble_ensemble']).mean(axis=0).tolist()
+            image_results_dict_reshape[f'state_{each_state}'][f'{each_model} ensemble'].extend(total_pred_averaged)
+            image_results_dict_reshape[f'state_{each_state}']['Averaged model ensemble'].append(total_pred_averaged)
+        image_results_dict_reshape[f'state_{each_state}']['Averaged model ensemble'] = \
+            np.array(image_results_dict_reshape[f'state_{each_state}']['Averaged model ensemble']).mean(axis=0).tolist()
     print(image_results_dict_reshape)
     for each_state in random_state:
         plot_predictions_scatter_helper_func(image_results_dict_reshape[f'state_{each_state}'], 
@@ -135,18 +139,18 @@ def test_single_model():
                                                  each_state, run_idx)
 
 def plot_predictions_scatter_helper_func(prediction_dict, ground_truth, state, run):
-    fig, ax = plt.subplots(figsize=(20, 20))
-    ax.plot([10, 70], [10, 70])
+    fig, ax = plt.subplots(figsize=(15, 15))
+    ax.plot([15, 65], [15, 65])
     color = iter(plt.cm.rainbow(np.linspace(0, 1, 5)))
     for key, value in prediction_dict.items():
         c = next(color)
         ax.scatter(ground_truth, value, s=200.0, c=c, label=key)
-    ax.set_title("Prediction scatter plot for all models", fontsize=40)
-    ax.set_xlabel('Age', fontsize=40)
-    ax.set_ylabel('Predictions', fontsize=40)
-    ax.legend(fontsize=40)
+    ax.set_title("Prediction scatter plot for all models", fontsize=50)
+    ax.set_xlabel('Age', fontsize=50)
+    ax.set_ylabel('Predictions', fontsize=50)
+    ax.legend(fontsize=35)
     ax.tick_params(axis='both', which='major', labelsize=25)
-    plt.savefig(os.path.join('/Users/hanzhiwang/PycharmProjects/Microstructure_Age_Prediction/temp', f'scatter_test_performance_{state}_{run}.png'), 
+    plt.savefig(os.path.join('/Users/hanzhiwang/Projects/Microstructure_Age_Prediction/temp', f'scatter_test_performance_{state}_{run}.png'), 
                 bbox_inches='tight')
 
 if __name__ == '__main__':

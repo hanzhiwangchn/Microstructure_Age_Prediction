@@ -100,9 +100,9 @@ def main_test():
         image_tract_score_list.append(mae_total)
 
         temp_dict = dict()
-        temp_dict['ensemble_images'] = image_ensemble_res[each_state_idx]
-        temp_dict['ensemble_tracts'] = tract_ensemble_res[each_state_idx]
-        temp_dict['ensemble_both'] = image_tract_ensemble[each_state_idx]
+        temp_dict['Structural Images Pipeline Ensemble'] = image_ensemble_res[each_state_idx]
+        temp_dict['Microstructure Measures Pipeline Ensemble'] = tract_ensemble_res[each_state_idx]
+        temp_dict['Two-stream Framework Ensemble'] = image_tract_ensemble[each_state_idx]
 
         plot_predictions_scatter_helper_func(temp_dict, ground_truth, random_state[each_state_idx])
 
@@ -118,18 +118,21 @@ def main_test():
 
 
 def plot_predictions_scatter_helper_func(prediction_dict, ground_truth, state):
-    fig, ax = plt.subplots(figsize=(20, 20))
-    ax.plot([10, 70], [10, 70])
+    fig, ax = plt.subplots(figsize=(15, 15))
+    ax.plot([15, 65], [15, 65])
     color = iter(plt.cm.rainbow(np.linspace(0, 1, 5)))
     for key, value in prediction_dict.items():
         c = next(color)
         ax.scatter(ground_truth, value, s=200.0, c=c, label=key)
-    ax.set_title("Prediction scatter plot for all models", fontsize=40)
-    ax.set_xlabel('Age', fontsize=40)
-    ax.set_ylabel('Predictions', fontsize=40)
-    ax.legend(fontsize=40)
+    ax.set_title("Prediction scatter plot", fontsize=40)
+    ax.set_xlabel('Age', fontsize=30)
+    ax.set_ylabel('Predictions', fontsize=30)
+    ax.legend(fontsize=25)
+    # Increase the size of the axis labels
+    # ax.tick_params(axis='both', which='major', labelsize=25)
     ax.tick_params(axis='both', which='major', labelsize=25)
-    plt.savefig(os.path.join('/Users/hanzhiwang/PycharmProjects/Microstructure_Age_Prediction/total_preds_plots', f'scatter_test_performance_{state}.png'), 
+    ax.tick_params(axis='both', which='minor', labelsize=8)
+    plt.savefig(os.path.join('/Users/hanzhiwang/Projects/Microstructure_Age_Prediction/total_preds_plots', f'scatter_test_performance_{state}.png'), 
                 bbox_inches='tight')
 
 if __name__ == '__main__':

@@ -18,7 +18,7 @@ from sklearn.ensemble import StackingRegressor
 from xgboost import XGBRegressor
 from sklearn.svm import SVR
 
-results_folder = 'model_ckpt_results/tracts'
+results_folder = '/Users/hanzhiwang/tract_full_res/tracts'
 logger = logging.getLogger(__name__)
 
 
@@ -171,7 +171,7 @@ def apply_decomposition(args, train_features, val_features, test_features):
     When decomposing tracts, we will train model on each d_measure and select top-performing models.
     """
     # Input shape: [subject, tracts, d_measures]
-    num_train_sub, num_tract_region, num_d_measures  = train_features.shape
+    num_train_sub, num_tract_region, num_d_measures = train_features.shape
     num_val_sub, _, _ = val_features.shape
     num_test_sub, _, _  = test_features.shape
 
@@ -293,7 +293,7 @@ def apply_smote(args, train_features, train_labels, feature_name):
     while not done:
         try:
             data_smogn = smogn.smoter(
-                data = df, y = 'label', k = 5, samp_method = args.smote_method,
+                data=df, y = 'label', k = 5, samp_method = args.smote_method,
                 rel_thres = args.smote_threshold, rel_method = 'manual',
                 rel_ctrl_pts_rg=[[20, 1, 0], 
                                  [30, 0, 0], 
@@ -513,8 +513,13 @@ def ensemble_model_from_multiple_runs(args, val_features, test_features, val_lab
     # add scatter plot for test set
     temp_dict = dict()
     for each_model in trained_model_list:
-        temp_dict[f'ensemble_{each_model}'] = top_prediction_dict[f'{each_model}'][f'ensemble_runs_{each_model}']
-    temp_dict['ensemble_ensemble'] = top_prediction_dict['ensemble']
+        if each_model == 'xgb':
+            temp_dict[f'XGBoost ensemble'] = top_prediction_dict[f'{each_model}'][f'ensemble_runs_{each_model}']
+        elif each_model == 'svr':
+            temp_dict[f'SVR ensemble'] = top_prediction_dict[f'{each_model}'][f'ensemble_runs_{each_model}']
+        elif each_model == 'stack_reg_1':
+            temp_dict[f'stacking model ensemble'] = top_prediction_dict[f'{each_model}'][f'ensemble_runs_{each_model}']
+    temp_dict['Averaged model ensemble'] = top_prediction_dict['ensemble']
     converted_dict = {key: value.tolist() for key, value in temp_dict.items()}
     with open(os.path.join(args.save_ensemble_dir, f'ensemble_model_predictions_{args.random_state}.json'), 'w') as f:
         json.dump(converted_dict, f)
@@ -533,16 +538,16 @@ def get_feature_name_helper_func(args, idx):
 
 
 def plot_predictions_scatter_helper_func(args, is_multi_runs, prediction_dict, ground_truth):
-    fig, ax = plt.subplots(figsize=(20, 20))
-    ax.plot([10, 70], [10, 70])
+    fig, ax = plt.subplots(figsize=(15, 15))
+    ax.plot([15, 65], [15, 65])
     color = iter(plt.cm.rainbow(np.linspace(0, 1, 5)))
     for key, value in prediction_dict.items():
         c = next(color)
         ax.scatter(ground_truth, value, s=200.0, c=c, label=key)
-    ax.set_title(f"Prediction scatter plot for all models", fontsize=40)
-    ax.set_xlabel('Age', fontsize=40)
-    ax.set_ylabel('Predictions',fontsize=40)
-    ax.legend(fontsize=40)
+    ax.set_title(f"Prediction scatter plot for all models", fontsize=50)
+    ax.set_xlabel('Age', fontsize=50)
+    ax.set_ylabel('Predictions',fontsize=50)
+    ax.legend(fontsize=35)
     ax.tick_params(axis='both', which='major', labelsize=25)
     if is_multi_runs:
         plt.savefig(os.path.join(args.save_ensemble_dir, f'ensemble_scatter_test_performance_{args.random_state}.png'), bbox_inches='tight')
